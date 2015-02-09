@@ -22,7 +22,6 @@ server.route({
 , path: '/new'
 , handler: function(request, reply) {
     var payload = JSON.parse(request.payload);
-    // reply(payload).code(201);
 
     if (payload.timeToLive === undefined || payload.size === undefined || payload.sshKeypair === undefined) {
       reply().code(400);
@@ -36,14 +35,6 @@ server.route({
       reply(awsResource).code(201);
     }
   }
-// , config: {
-//     validate: {
-//       payload: {
-//         // timeToLive: joi.string().required()
-
-//       }
-//     }
-//   }
 });
 
 if (!module.parent) { // Don't start server if testing
