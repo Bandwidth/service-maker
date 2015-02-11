@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/inetCatapult/service-maker",
   "dependencies": {
+    "boom": "^2.6.1",
     "chai": "^1.10.0",
     "commander": "^2.6.0",
     "good": "^5.1.1",
