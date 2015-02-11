@@ -44,15 +44,20 @@ server.route({
 
 server.route({
 	method: 'GET'
-,	path: '/v1/instances/5'
+,	path: '/v1/instances/{awsInstanceID}'
 , handler: function(request, reply) {
-		var payload = {
-			ip: '8.8.8.8',
-			hostname: '1.255.255.255',
-			username: 'Tyler',
-			SSHKeyPairName: 'User'
+		var awsInstanceID = encodeURIComponent(request.params.awsInstanceID);
+		if (awsInstanceID === 5) {
+			var payload = {
+				ip: '8.8.8.8',
+				hostname: '1.255.255.255',
+				username: 'Tyler',
+				SSHKeyPairName: 'User'
+			}
+			reply(payload).code(200);
 		}
-		reply(payload).code(200);
+	} else {
+		replay().code(404);
 	}
 });
 
