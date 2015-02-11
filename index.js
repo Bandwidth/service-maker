@@ -37,9 +37,28 @@ server.route({
       reply(Boom.badRequest(validated.error.message));
     } else {
       var instance = validated.value;
-      reply(instance).code(201);
+      reply().code(201).header("Location: /v1/instances/5");
     }
   }
+});
+
+server.route({
+	method: 'GET'
+,	path: '/v1/instances/{awsInstanceID}'
+, handler: function(request, reply) {
+		var awsInstanceID = encodeURIComponent(request.params.awsInstanceID);
+		if (awsInstanceID === 5) {
+			var payload = {
+				ip: '8.8.8.8'
+				, hostname: '1.255.255.255'
+				, username: 'Tyler'
+				, SSHKeyPairName: 'User'
+			}
+			reply(payload).code(200);
+		} else {
+			replay().code(404);
+		}
+	}
 });
 
 if (!module.parent) { // Don't start server if testing
