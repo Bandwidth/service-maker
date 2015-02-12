@@ -4,7 +4,7 @@
   "description": "Interaction with AWS--simplified!",
   "main": "index.js",
   "scripts": {
-    "test": "mocha",
+    "test": "grunt",
     "start": "node index.js"
   },
   "repository": {
