@@ -22,7 +22,7 @@ server.route({
   method: 'POST'
 , path: '/v1/instances'
 , handler: function(request, reply) {
-    var payload = JSON.parse(request.payload);
+    var payload = request.payload;
 
     // This is a Joi schema
     var INSTANCE_SCHEMA = Joi.object().keys({
@@ -37,28 +37,35 @@ server.route({
       reply(Boom.badRequest(validated.error.message));
     } else {
       var instance = validated.value;
-      reply().code(201).header("Location: /v1/instances/5");
+      reply().code(201).header('Location', '/v1/instances/5');
     }
   }
 });
 
 server.route({
-	method: 'GET'
-,	path: '/v1/instances/{awsInstanceID}'
+  method: 'GET'
+, path: '/v1/instances/{awsID}'
 , handler: function(request, reply) {
-		var awsInstanceID = encodeURIComponent(request.params.awsInstanceID);
-		if (awsInstanceID === 5) {
-			var payload = {
-				ip: '8.8.8.8'
-				, hostname: '1.255.255.255'
-				, username: 'Tyler'
-				, SSHKeyPairName: 'User'
-			}
-			reply(payload).code(200);
-		} else {
-			replay().code(404);
-		}
-	}
+    var awsID = encodeURIComponent(request.params.awsID);
+    if (awsID == 5) {
+      var payload = {
+        ip: '8.8.8.8'
+      , hostname: '1.255.255.255'
+      , username: 'Tyler'
+      , SSHKeyPairName: 'User'
+      }
+      reply(payload).code(200);
+    } else {
+      reply().code(404);
+    }
+  }
+, config: {
+    validate: {
+      params: {
+        awsID: Joi.number().integer().min(1).required()
+      }
+    }
+  }
 });
 
 if (!module.parent) { // Don't start server if testing
