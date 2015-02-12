@@ -9,21 +9,21 @@ module.exports = function(grunt) {
   grunt.initConfig({
     jscs: {
       src: allFiles
-    , options : {
-        config : '.jscsrc'
+    , options: {
+        config: '.jscsrc'
       }
     }
 
-  , jshint : {
-      src     : sourceFiles
-    , options : {
+  , jshint: {
+      src: sourceFiles
+    , options: {
         laxcomma: true
       }
     }
 
-  , mochaIstanbul : {
-      coverage : {
-        src : 'test'
+  , mochaIstanbul: {
+      coverage: {
+        src: 'test'
       }
     }
   });
