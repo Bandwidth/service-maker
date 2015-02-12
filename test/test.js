@@ -6,18 +6,6 @@ before(function(done) {
   done();
 });
 
-describe('GET /', function() {
-
-  it('should be connectable', function(done) {
-    var request = { url: '/', method: 'GET' };
-    this.server.inject(request, function(response) {
-      response.statusCode.should.equal(200);
-      done();
-    });
-  });
-
-});
-
 describe('GET /v1/instances', function() {
 
   it('should be able to retrieve info for instance 5', function(done) {

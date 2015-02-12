@@ -8,14 +8,6 @@ server.connection({
 , port: parseInt(process.env.PORT) || 8000
 });
 
-server.route({
-  method: 'GET'
-, path: '/'
-, handler: function(request, reply) {
-    reply();
-  }
-});
-
 server.route(routes);
 
 if (!module.parent) { // Don't start server if testing
