@@ -2,7 +2,7 @@ module.exports = function(grunt) {
 
   var _ = grunt.util._;
 
-  var sourceFiles = [ '*.js', 'app/**/*.js', 'core/**/*.js', 'travis/**/*.js' ];
+  var sourceFiles = [ '*.js', 'config/**/*.js', 'lib/**/*.js', 'travis/**/*.js' ];
   var testFiles = [ 'test/**/*.js' ];
   var allFiles = sourceFiles.concat(testFiles);
 
