@@ -1,8 +1,6 @@
 var Hapi = require('hapi');
 var Good = require('good');
-var request = require('request');
-var Joi = require('joi');
-var Boom = require('boom');
+var routes = require('./config/routes');
 
 var server = new Hapi.Server();
 server.connection({
@@ -10,56 +8,7 @@ server.connection({
 , port: parseInt(process.env.PORT) || 8000
 });
 
-server.route({
-  method: 'GET'
-, path: '/'
-, handler: function(request, reply) {
-    reply();
-  }
-});
-
-server.route({
-  method: 'POST'
-, path: '/v1/instances'
-, handler: function(request, reply) {
-    var payload = JSON.parse(request.payload);
-
-    // This is a Joi schema
-    var INSTANCE_SCHEMA = Joi.object().keys({
-      timeToLive: Joi.number().integer().min(0), // duration in seconds
-      size: Joi.string().valid('micro', 'small', 'medium', 'large').default('micro'),
-      sshKeyPair: Joi.string().required()
-    });
-
-    // Use the schema to validate a payload
-    var validated = Joi.validate(request.payload, INSTANCE_SCHEMA);
-    if (validated.error) {
-      reply(Boom.badRequest(validated.error.message));
-    } else {
-      var instance = validated.value;
-      reply().code(201).header("Location: /v1/instances/5");
-    }
-  }
-});
-
-server.route({
-	method: 'GET'
-,	path: '/v1/instances/{awsInstanceID}'
-, handler: function(request, reply) {
-		var awsInstanceID = encodeURIComponent(request.params.awsInstanceID);
-		if (awsInstanceID === 5) {
-			var payload = {
-				ip: '8.8.8.8'
-				, hostname: '1.255.255.255'
-				, username: 'Tyler'
-				, SSHKeyPairName: 'User'
-			}
-			reply(payload).code(200);
-		} else {
-			replay().code(404);
-		}
-	}
-});
+server.route(routes);
 
 if (!module.parent) { // Don't start server if testing
   var withGood = {
