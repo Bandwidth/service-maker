@@ -10,9 +10,9 @@ module.exports = [
 
       // This is a Joi schema
       var INSTANCE_SCHEMA = Joi.object().keys({
-        timeToLive: Joi.number().integer().min(0), // duration in seconds
-        size: Joi.string().valid('micro', 'small', 'medium', 'large').default('micro'),
-        sshKeyPair: Joi.string().required()
+        timeToLive: Joi.number().integer().min(0) // duration in seconds
+      , size: Joi.string().valid('micro', 'small', 'medium', 'large').default('micro')
+      , sshKeyPair: Joi.string().required()
       });
 
       // Use the schema to validate a payload
@@ -36,7 +36,7 @@ module.exports = [
         , hostname: '1.255.255.255'
         , username: 'Tyler'
         , SSHKeyPairName: 'User'
-        }
+        };
         reply(payload).code(200);
       } else {
         reply().code(404);

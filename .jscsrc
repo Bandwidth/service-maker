@@ -10,7 +10,7 @@
   ],
   "requireCamelCaseOrUpperCaseIdentifiers": true,
   "maximumLineLength": {
-    "value": 80,
+    "value": 120,
     "allowComments": true,
     "allowRegex": true
   },
@@ -23,6 +23,7 @@
   "disallowSpaceAfterPrefixUnaryOperators": true,
   "disallowMultipleVarDecl": true,
   "disallowKeywordsOnNewLine": ["else"],
+  "disallowCommaBeforeLineBreak": true,
 
   "requireSpaceAfterKeywords": [
     "if",
@@ -55,7 +56,9 @@
     "beforeOpeningRoundBrace": true
   },
   "disallowSpacesInsideParentheses": true,
-
+  "disallowSpacesInFunction": {
+    "beforeOpeningRoundBrace": true
+  },
 
   "validateJSDoc": {
     "checkParamNames": true,
