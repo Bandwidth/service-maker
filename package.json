@@ -38,7 +38,6 @@
     "hapi": "^8.1.0",
     "joi": "^5.1.0",
     "mocha": "^2.1.0",
-    "mongodb": "*",
     "request": "^2.53.0"
   },
   "devDependencies": {}
