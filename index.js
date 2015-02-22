@@ -1,34 +1,6 @@
 var Hapi = require('hapi');
 var Good = require('good');
 var routes = require('./config/routes');
-var AWS = require('aws-sdk');
-
-var ec2 = new AWS.EC2({apiVersion: '2014-10-01'
-  , accessKeyId: process.env.AWS_ACCESS_KEY_ID
-  , secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-  , region: 'us-west-2'
-});
-
-var params = {
-	DryRun: false
-	, Filters: [
-		{
-			Name: 'Name'
-			, Values: [
-			'Le Test'
-			]
-		}
-	]
-	, MaxResults: 1
-};
-
-ec2.describeTags(params, function(err, data) {
-  if (err) {
-    console.log(err, err.stack);
-  } else {
-    console.log(data);
-  }
-});
 
 var server = new Hapi.Server();
 server.connection({
