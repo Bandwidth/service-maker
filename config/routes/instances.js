@@ -1,5 +1,10 @@
 var Joi = require('joi');
 var Boom = require('boom');
+var AWS = require('aws-sdk');
+var ec2 = new AWS.EC2({
+  apiVersion: '2014-10-01'
+, region: 'us-west-2'
+});
 
 module.exports = [
   {
@@ -27,27 +32,34 @@ module.exports = [
   }
 , {
     method: 'GET'
-  , path: '/v1/instances/{awsID}'
+  , path: '/v1/instances/{resourceId?}'
   , handler: function(request, reply) {
-      var awsID = encodeURIComponent(request.params.awsID);
-      if (awsID == 5) {
-        var payload = {
-          ip: '8.8.8.8'
-        , hostname: '1.255.255.255'
-        , username: 'Tyler'
-        , SSHKeyPairName: 'User'
+      console.log('Getting info for resource: ' + request.params.resourceId);
+      var params = {};
+      if (request.params.resourceId) {
+        params = {
+          InstanceIds: [encodeURIComponent(request.params.resourceId)]
         };
-        reply(payload).code(200);
-      } else {
-        reply().code(404);
       }
-    }
-  , config: {
-      validate: {
-        params: {
-          awsID: Joi.number().integer().min(1).required()
+      ec2.describeInstances(params, function(err, data) {
+        if (err) {
+          reply(Boom.badRequest(err));
+        } else {
+          // EC2 returns multiple reservations.
+          // Each has a list of instances associated with it.
+          var instanceInfo = [];
+          data.Reservations.forEach(function(reservation, index, array) {
+            reservation.Instances.forEach(function(instance, index, array) {
+              instanceInfo.push({
+                InstanceId: instance.InstanceId
+              , State: instance.State.Name
+              , Tags: instance.Tags
+              });
+            });
+          });
+          reply(instanceInfo);
         }
-      }
+      });
     }
   }
 ];
