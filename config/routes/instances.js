@@ -6,6 +6,8 @@ var ec2 = new AWS.EC2({
 , region: 'us-west-2'
 });
 
+var server = require('./../../index.js');
+
 module.exports = [
   {
     method: 'POST'
@@ -26,7 +28,45 @@ module.exports = [
         reply(Boom.badRequest(validated.error.message));
       } else {
         var instance = validated.value;
-        reply().code(201).header('Location', '/v1/instances/5');
+
+        // Define instance paramaters
+        var ec2Params = {
+          ImageId: 'ami-d53818e5' // Ubuntu 14.04 us-west-2
+        , InstanceType: 't1.micro'
+        , KeyName: '123abc'
+        , MinCount: 1
+        , MaxCount: 1
+        };
+
+        // Create the instance
+        ec2.runInstances(ec2Params, function(err, data) {
+          if (err) {
+            console.log('Could not create instance', err);
+            return;
+          }
+
+          // Get the instance ID
+          var instanceId = data.Instances[0].InstanceId;
+          console.log('Created ' + ec2Params.InstanceType + ' instance ' + instanceId);
+
+          // Add tags to the instance
+          var tags = {
+            Resources: [instanceId]
+          , Tags: [
+              {
+                Key: 'Name'
+              , Value: 'Service Maker Test'
+              }
+            ]
+          }
+
+          ec2.createTags(tags, function(err) {
+            console.log('Applied tags to instance ' + instanceId);
+          })
+
+          // Reply with the instance location
+          reply().code(201).header('Location', '/v1/instances/' + instanceId);
+        });
       }
     }
   }
