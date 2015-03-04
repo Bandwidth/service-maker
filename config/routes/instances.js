@@ -71,6 +71,64 @@ module.exports = [
     }
   }
 , {
+    method: 'PUT'
+  , path: '/v1/instances/{instanceId}'
+  , handler: function(request, reply) {
+      var payload = request.payload;
+
+      var SCHEMA = Joi.object().keys({
+        state: Joi.string().valid('stopped', 'running', 'terminated')
+      });
+
+      var validated = Joi.validate(request.payload, SCHEMA);
+      if (validated.error) {
+        reply(Boom.badRequest(validated.error.message))
+      } else {
+        payload = JSON.parse(payload);
+        var instanceId = request.params.instanceId;
+        var state = payload.state;
+        switch (state) {
+          case 'stopped':
+            var params = { InstanceIds: [instanceId] };
+            ec2.stopInstances(params, function(error, data) {
+              if (error) {
+                console.log(error, error.stack);
+                reply(error).code(400);
+              } else {
+                console.log('Stopped instance ' + instanceId);
+                reply().code(204); // 204: Processed request, but not returning anything
+              }
+            });
+            break;
+          case 'running':
+            var params = { InstanceIds: [instanceId] };
+            ec2.startInstances(params, function(error, data) {
+              if (error) {
+                console.log(error, error.stack);
+                reply(error).code(400);
+              } else {
+                console.log('Started instance ' + instanceId);
+                reply().code(204); // 204: Processed request, but not returning anything
+              }
+            });
+            break;
+          case 'terminated':
+            var params = { InstanceIds: [instanceId] };
+            ec2.terminateInstances(params, function(error, data) {
+              if (error) {
+                console.log(error, error.stack);
+                reply(error).code(400);
+              } else {
+                console.log('Terminated instance ' + instanceId);
+                reply().code(204); // 204: Processed request, but not returning anything
+              }
+            });
+            break;
+        }
+      }
+    }
+  }
+, {
     method: 'GET'
   , path: '/v1/instances/{resourceId?}'
   , handler: function(request, reply) {
