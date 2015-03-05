@@ -11,20 +11,25 @@ server.connection({
 server.route(routes);
 
 if (!module.parent) { // Don't start server if testing
+  var loggingOptions = {
+    opsInterval: 10000
+  , reporters: [{
+      reporter: require('good-console')
+    , args: [{ request: '*', log: '*', response: '*', 'error': '*' }]
+    }]
+  };
   var withGood = {
-    register: Good
-  , options: {
-      reporters: [{
-        reporter: require('good-console')
-      , args: [{ log: '*', response: '*' }]
-      }]
-    }
+    register: require('good')
+  , options: loggingOptions
   };
   server.register(withGood, function(error) {
-    if (error) { throw error; } // Problem loading Good plugin
-    server.start(function() {
-      server.log('info', 'Server running at: ' + server.info.uri);
-    });
+    if (error) {
+      console.error(error);
+    } else {
+      server.start(function() {
+        server.log('info', 'Server started at ' + server.info.uri);
+      });
+    }
   });
 }
 

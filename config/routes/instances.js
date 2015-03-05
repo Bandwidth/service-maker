@@ -6,8 +6,6 @@ var ec2 = new AWS.EC2({
 , region: 'us-west-2'
 });
 
-var server = require('./../../index.js');
-
 module.exports = [
   {
     method: 'POST'
@@ -41,13 +39,13 @@ module.exports = [
         // Create the instance
         ec2.runInstances(ec2Params, function(err, data) {
           if (err) {
-            console.log('Could not create instance', err);
+            request.log('info', 'Could not create instance', err);
             return;
           }
 
           // Get the instance ID
           var instanceId = data.Instances[0].InstanceId;
-          console.log('Created ' + ec2Params.InstanceType + ' instance ' + instanceId);
+          request.log('info', 'Created ' + ec2Params.InstanceType + ' instance ' + instanceId);
 
           // Add tags to the instance
           var tags = {
@@ -58,11 +56,11 @@ module.exports = [
               , Value: 'Service Maker Test'
               }
             ]
-          }
+          };
 
           ec2.createTags(tags, function(err) {
-            console.log('Applied tags to instance ' + instanceId);
-          })
+            request.log('info', 'Applied tags to instance ' + instanceId);
+          });
 
           // Reply with the instance location
           reply().code(201).header('Location', '/v1/instances/' + instanceId);
@@ -82,7 +80,7 @@ module.exports = [
 
       var validated = Joi.validate(request.payload, SCHEMA);
       if (validated.error) {
-        reply(Boom.badRequest(validated.error.message))
+        reply(Boom.badRequest(validated.error.message));
       } else {
         payload = JSON.parse(payload);
         var instanceId = request.params.instanceId;
@@ -92,34 +90,34 @@ module.exports = [
             var params = { InstanceIds: [instanceId] };
             ec2.stopInstances(params, function(error, data) {
               if (error) {
-                console.log(error, error.stack);
+                request.log('info', error, error.stack);
                 reply(error).code(400);
               } else {
-                console.log('Stopped instance ' + instanceId);
+                request.log('info', 'Stopped instance ' + instanceId);
                 reply().code(204); // 204: Processed request, but not returning anything
               }
             });
             break;
           case 'running':
-            var params = { InstanceIds: [instanceId] };
+            params = { InstanceIds: [instanceId] };
             ec2.startInstances(params, function(error, data) {
               if (error) {
-                console.log(error, error.stack);
+                request.log('info', error, error.stack);
                 reply(error).code(400);
               } else {
-                console.log('Started instance ' + instanceId);
+                console.log('info', 'Started instance ' + instanceId);
                 reply().code(204); // 204: Processed request, but not returning anything
               }
             });
             break;
           case 'terminated':
-            var params = { InstanceIds: [instanceId] };
+            params = { InstanceIds: [instanceId] };
             ec2.terminateInstances(params, function(error, data) {
               if (error) {
-                console.log(error, error.stack);
+                request.log('info', error, error.stack);
                 reply(error).code(400);
               } else {
-                console.log('Terminated instance ' + instanceId);
+                request.log('info', 'Terminated instance ' + instanceId);
                 reply().code(204); // 204: Processed request, but not returning anything
               }
             });
@@ -132,7 +130,6 @@ module.exports = [
     method: 'GET'
   , path: '/v1/instances/{resourceId?}'
   , handler: function(request, reply) {
-      console.log('Getting info for resource: ' + request.params.resourceId);
       var params = {};
       if (request.params.resourceId) {
         params = {
