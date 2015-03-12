@@ -6,11 +6,15 @@ var ec2 = new AWS.EC2({
 , region: 'us-west-2'
 });
 
+var InstancePool = require('./../../lib/InstancePool');
+
 module.exports = [
   {
     method: 'POST'
   , path: '/v1/instances'
   , handler: function(request, reply) {
+      var pool = new InstancePool('NaiveStrategy');
+
       var payload = request.payload;
 
       // This is a Joi schema
@@ -25,46 +29,16 @@ module.exports = [
       if (validated.error) {
         reply(Boom.badRequest(validated.error.message));
       } else {
+        // Get the validated information instance.
         var instance = validated.value;
 
-        // Define instance paramaters
-        var ec2Params = {
-          ImageId: 'ami-d53818e5' // Ubuntu 14.04 us-west-2
-        , InstanceType: 't1.micro'
-        , KeyName: '123abc'
-        , MinCount: 1
-        , MaxCount: 1
-        };
+        // TODO: Retrieve instance from pool.
+        // Probably something like pool.getInstance(instance.size);
 
-        // Create the instance
-        ec2.runInstances(ec2Params, function(err, data) {
-          if (err) {
-            request.log('info', 'Could not create instance', err);
-            return;
-          }
+        // TODO: Apply tags to returned instance.
 
-          // Get the instance ID
-          var instanceId = data.Instances[0].InstanceId;
-          request.log('info', 'Created ' + ec2Params.InstanceType + ' instance ' + instanceId);
-
-          // Add tags to the instance
-          var tags = {
-            Resources: [instanceId]
-          , Tags: [
-              {
-                Key: 'Name'
-              , Value: 'Service Maker Test'
-              }
-            ]
-          };
-
-          ec2.createTags(tags, function(err) {
-            request.log('info', 'Applied tags to instance ' + instanceId);
-          });
-
-          // Reply with the instance location
-          reply().code(201).header('Location', '/v1/instances/' + instanceId);
-        });
+        // Reply with the instance location
+        reply().code(201).header('Location', '/v1/instances/' + instanceId);
       }
     }
   }

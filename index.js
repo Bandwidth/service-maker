@@ -2,6 +2,8 @@ var Hapi = require('hapi');
 var Good = require('good');
 var routes = require('./config/routes');
 
+var InstancePool = require('./lib/InstancePool');
+
 var server = new Hapi.Server();
 server.connection({
   host: '0.0.0.0'
@@ -27,7 +29,11 @@ if (!module.parent) { // Don't start server if testing
       console.error(error);
     } else {
       server.start(function() {
-        server.log('info', 'Server started at ' + server.info.uri);
+        server.log('info', 'Starting instance pool...');
+        var pool = new InstancePool('NaiveStrategy');
+        pool.initialize(server, function() {
+          server.log('info', 'Server started at ' + server.info.uri);
+        });
       });
     }
   });
