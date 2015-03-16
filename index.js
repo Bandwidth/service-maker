@@ -2,6 +2,8 @@ var Hapi = require('hapi');
 var Good = require('good');
 var routes = require('./config/routes');
 
+var InstancePool = require('./lib/InstancePool');
+
 var server = new Hapi.Server();
 server.connection({
   host: '0.0.0.0'
@@ -11,20 +13,29 @@ server.connection({
 server.route(routes);
 
 if (!module.parent) { // Don't start server if testing
+  var loggingOptions = {
+    opsInterval: 10000
+  , reporters: [{
+      reporter: require('good-console')
+    , args: [{ request: '*', log: '*', response: '*', 'error': '*' }]
+    }]
+  };
   var withGood = {
-    register: Good
-  , options: {
-      reporters: [{
-        reporter: require('good-console')
-      , args: [{ log: '*', response: '*' }]
-      }]
-    }
+    register: require('good')
+  , options: loggingOptions
   };
   server.register(withGood, function(error) {
-    if (error) { throw error; } // Problem loading Good plugin
-    server.start(function() {
-      server.log('info', 'Server running at: ' + server.info.uri);
-    });
+    if (error) {
+      console.error(error);
+    } else {
+      server.start(function() {
+        server.log('info', 'Starting instance pool...');
+        var pool = new InstancePool('NaiveStrategy');
+        pool.initialize(server, function() {
+          server.log('info', 'Server started at ' + server.info.uri);
+        });
+      });
+    }
   });
 }
 

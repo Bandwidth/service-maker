@@ -6,11 +6,15 @@ var ec2 = new AWS.EC2({
 , region: 'us-west-2'
 });
 
+var InstancePool = require('./../../lib/InstancePool');
+
 module.exports = [
   {
     method: 'POST'
   , path: '/v1/instances'
   , handler: function(request, reply) {
+      var pool = new InstancePool('NaiveStrategy');
+
       var payload = request.payload;
 
       // This is a Joi schema
@@ -25,8 +29,74 @@ module.exports = [
       if (validated.error) {
         reply(Boom.badRequest(validated.error.message));
       } else {
+        // Get the validated information instance.
         var instance = validated.value;
-        reply().code(201).header('Location', '/v1/instances/5');
+
+        // TODO: Retrieve instance from pool.
+        // Probably something like pool.getInstance(instance.size);
+
+        // TODO: Apply tags to returned instance.
+
+        // Reply with the instance location
+        reply().code(201).header('Location', '/v1/instances/' + instanceId);
+      }
+    }
+  }
+, {
+    method: 'PUT'
+  , path: '/v1/instances/{instanceId}'
+  , handler: function(request, reply) {
+      var payload = request.payload;
+
+      var SCHEMA = Joi.object().keys({
+        state: Joi.string().valid('stopped', 'running', 'terminated')
+      });
+
+      var validated = Joi.validate(request.payload, SCHEMA);
+      if (validated.error) {
+        reply(Boom.badRequest(validated.error.message));
+      } else {
+        payload = JSON.parse(payload);
+        var instanceId = request.params.instanceId;
+        var state = payload.state;
+        switch (state) {
+          case 'stopped':
+            var params = { InstanceIds: [instanceId] };
+            ec2.stopInstances(params, function(error, data) {
+              if (error) {
+                request.log('info', error, error.stack);
+                reply(error).code(400);
+              } else {
+                request.log('info', 'Stopped instance ' + instanceId);
+                reply().code(204); // 204: Processed request, but not returning anything
+              }
+            });
+            break;
+          case 'running':
+            params = { InstanceIds: [instanceId] };
+            ec2.startInstances(params, function(error, data) {
+              if (error) {
+                request.log('info', error, error.stack);
+                reply(error).code(400);
+              } else {
+                console.log('info', 'Started instance ' + instanceId);
+                reply().code(204); // 204: Processed request, but not returning anything
+              }
+            });
+            break;
+          case 'terminated':
+            params = { InstanceIds: [instanceId] };
+            ec2.terminateInstances(params, function(error, data) {
+              if (error) {
+                request.log('info', error, error.stack);
+                reply(error).code(400);
+              } else {
+                request.log('info', 'Terminated instance ' + instanceId);
+                reply().code(204); // 204: Processed request, but not returning anything
+              }
+            });
+            break;
+        }
       }
     }
   }
@@ -34,7 +104,6 @@ module.exports = [
     method: 'GET'
   , path: '/v1/instances/{resourceId?}'
   , handler: function(request, reply) {
-      console.log('Getting info for resource: ' + request.params.resourceId);
       var params = {};
       if (request.params.resourceId) {
         params = {
