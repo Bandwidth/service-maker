@@ -45,5 +45,17 @@ e.g. `smake create 't1.micro' --name='super awesome instance 1'`
 `smake restart <InstanceId>` Restarts an instance.  
 e.g. `smake restart --name='super awesome instance'` Restarts all instances whose names start with the specified name.
 
+### Instance Tagging
+`smake add tag <InstanceId> <key> <value>` Applies a tag to an instance.  
+`smake remove tag <InstanceId> <key> <value>` Removes a tag from an instance.  
+`smake remove tag <InstanceId> <key>` Removes all tags with the specified key from the instance.
+
+### Keypair Management
+`smake list keypairs` Lists all keypair names maintained by Service Maker.  
+`smake generate keypair <KeypairName>` Generates a new keypair with the specified name.  
+`smake delete keypair <KeypairName>` Deletes a keypair with the specified name. 
+
+**Note on custom keypairs:** Service Maker cannot use custom keypairs for instances as doing so requires the instance to be restarted. If you wish to use a custom keypair, you must do so manually either through the AWS Console or by connecting to the VM and modifying authorized_keys. Before doing so, you may wish to use these commands to generate a keypair. **You may not delete the default 'smake' keypair.**
+
 ## Contributing
 Clone. Branch. Code. Push. Pull Request. Wait. Be happy :smile:
