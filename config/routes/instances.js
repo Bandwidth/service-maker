@@ -7,6 +7,7 @@ var ec2 = new AWS.EC2({
 });
 
 var InstancePool = require('./../../lib/InstancePool');
+var Instances = require('./../../lib/Instances')
 
 module.exports = [
   {
@@ -116,10 +117,26 @@ module.exports = [
           var instanceInfo = [];
           data.Reservations.forEach(function(reservation) {
             reservation.Instances.forEach(function(instance) {
-              instanceInfo.push(instance);
+              var instanceData = {
+                InstanceId: instance.InstanceId
+              };
+              instanceInfo.push(instanceData);
+              // var instanceData = {
+              //   sshable: Instances.waitForSsh(instance.InstanceId)
+              // }
             });
           });
-          reply(instanceInfo);
+          Instances.canSsh(instanceInfo[0].InstanceId, function(sshable) {
+            var instance = instanceInfo[0];
+            instance['sshable'] = sshable;
+            reply(instanceInfo);
+          });
+
+          // reply(instanceInfo);
+
+          // Instances.waitForSsh(request.params.resourceId, function(instanceId) {
+          //   reply('ssh ready for instance ' + instanceId);
+          // });
         }
       });
     }
