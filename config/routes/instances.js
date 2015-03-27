@@ -17,28 +17,25 @@ module.exports = [
 
       var payload = request.payload;
 
-      // This is a Joi schema
+      // Define an instance schema.
       var INSTANCE_SCHEMA = Joi.object().keys({
         timeToLive: Joi.number().integer().min(0) // duration in seconds
-      , size: Joi.string().valid('micro', 'small', 'medium', 'large').default('micro')
+      , type: Joi.string().default('t1.micro')
       , sshKeyPair: Joi.string().required()
       });
 
-      // Use the schema to validate a payload
+      // Use the schema to validate a payload.
       var validated = Joi.validate(request.payload, INSTANCE_SCHEMA);
       if (validated.error) {
         reply(Boom.badRequest(validated.error.message));
       } else {
-        // Get the validated information instance.
+        // Get the validated instance information.
         var instance = validated.value;
 
-        // TODO: Retrieve instance from pool.
-        // Probably something like pool.getInstance(instance.size);
-
-        // TODO: Apply tags to returned instance.
-
-        // Reply with the instance location
-        reply().code(201).header('Location', '/v1/instances/' + instanceId);
+        // Retrieve the instance from the pool.
+        pool.getInstance(instance, function(instance) {
+          reply().code(201).header('Location', '/v1/instances/' + instance);
+        });
       }
     }
   }
@@ -117,13 +114,9 @@ module.exports = [
           // EC2 returns multiple reservations.
           // Each has a list of instances associated with it.
           var instanceInfo = [];
-          data.Reservations.forEach(function(reservation, index, array) {
-            reservation.Instances.forEach(function(instance, index, array) {
-              instanceInfo.push({
-                InstanceId: instance.InstanceId
-              , State: instance.State.Name
-              , Tags: instance.Tags
-              });
+          data.Reservations.forEach(function(reservation) {
+            reservation.Instances.forEach(function(instance) {
+              instanceInfo.push(instance);
             });
           });
           reply(instanceInfo);
