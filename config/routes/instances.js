@@ -7,7 +7,7 @@ var ec2 = new AWS.EC2({
 });
 
 var InstancePool = require('./../../lib/InstancePool');
-var Instances = require('./../../lib/Instances')
+var Instances = require('./../../lib/Instances');
 
 module.exports = [
   {
@@ -121,22 +121,13 @@ module.exports = [
                 InstanceId: instance.InstanceId
               };
               instanceInfo.push(instanceData);
-              // var instanceData = {
-              //   sshable: Instances.waitForSsh(instance.InstanceId)
-              // }
             });
           });
           Instances.canSsh(instanceInfo[0].InstanceId, function(sshable) {
             var instance = instanceInfo[0];
-            instance['sshable'] = sshable;
+            instance.sshable = sshable;
             reply(instanceInfo);
           });
-
-          // reply(instanceInfo);
-
-          // Instances.waitForSsh(request.params.resourceId, function(instanceId) {
-          //   reply('ssh ready for instance ' + instanceId);
-          // });
         }
       });
     }
