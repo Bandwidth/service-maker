@@ -1,4 +1,4 @@
-# Service Maker [![Build Status](https://travis-ci.org/inetCatapult/service-maker.svg?branch=master)](https://travis-ci.org/inetCatapult/service-maker)
+# Service Maker   [![Build Status](https://travis-ci.org/inetCatapult/service-maker.svg?branch=master)](https://travis-ci.org/inetCatapult/service-maker)
 
 ## Overview 
 Service Maker makes interacting with AWS easier. It does this by providing a set of sane defaults by which news AWS instances are created, so rather than specifying each individual setting required to spin up a new instance, all you have to do is tell Service Maker the important stuff. It takes care of the rest.
@@ -31,8 +31,7 @@ Clone the repo and type `npm install`. That's it.
 Service Maker provides a command-line endpoint for user access. A more detailed list of functionality can be reached by typing `smake --help`. A few basic commands are listed below.
 
 ### Searching
-`smake list` Lists all current EC2 instances.  
-`smake list mine` Lists all of your instances.  
+`smake list` Lists all current EC2 instances.   
 `smake find <InstanceId>` Retrieves information about a specific instance.  
 
 ### Instance Management
@@ -51,11 +50,9 @@ e.g. `smake restart --name='super awesome instance'` Restarts all instances whos
 `smake remove tag <InstanceId> <key>` Removes all tags with the specified key from the instance.
 
 ### Keypair Management
-`smake list keypairs` Lists all keypair names maintained by Service Maker.  
-`smake generate keypair <KeypairName>` Generates a new keypair with the specified name.  
-`smake delete keypair <KeypairName>` Deletes a keypair with the specified name. 
+Service Make relies on a default keypair. You must download this from the AWS Console to ssh into any instances retrieved from the system. 
 
-**Note on custom keypairs:** Service Maker cannot use custom keypairs for instances as doing so requires the instance to be restarted. If you wish to use a custom keypair, you must do so manually either through the AWS Console or by connecting to the VM and modifying authorized_keys. Before doing so, you may wish to use these commands to generate a keypair. **You may not delete the default 'smake' keypair.**
+**Note on custom keypairs:** Service Maker cannot use custom keypairs for instances as doing so requires the instance to be restarted. If you wish to use a custom keypair, you must do so manually either through the AWS Console or by connecting to the VM and modifying authorized_keys. **You may not delete the default 'smake' keypair.**
 
 ## Contributing
 Clone. Branch. Code. Push. Pull Request. Wait. Be happy :smile:
