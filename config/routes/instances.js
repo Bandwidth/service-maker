@@ -119,6 +119,11 @@ module.exports = [
             reservation.Instances.forEach(function(instance) {
               var instanceData = {
                 InstanceId: instance.InstanceId
+              , State: instance.State.Name
+              , InstanceType: instance.InstanceType
+              , KeyName: instance.KeyName
+              , PublicIpAddress: instance.PublicIpAddress
+              , Tags: instance.Tags
               };
               instanceInfo.push(instanceData);
             });
