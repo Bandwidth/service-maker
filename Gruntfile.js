@@ -19,6 +19,7 @@ module.exports = function(grunt) {
     , options: {
         laxcomma: true
       , loopfunc: true
+      , esnext: true
       }
     }
 
