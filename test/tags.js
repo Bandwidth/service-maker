@@ -1,11 +1,15 @@
 const should = require('chai').should();
 const mockery = require('mockery');
 const nock = require('nock');
+const sinon = require('sinon');
 const request = require('request');
 
 const API_PATH = 'http://localhost:8000';
 
 var Tags;
+var xhr;
+var requests;
+var server;
 
 before(function(done) {
   mockery.registerSubstitute('./../../lib/Tags', './mocks/tags_mocks');
@@ -13,12 +17,18 @@ before(function(done) {
   mockery.enable();
 
   Tags = require('./../../lib/Tags');
+  server = require('./../index');
+
+  // xhr = sinon.useFakeXMLHttpRequest();
+  // requests = [];
+  // xhr.onCreate = function(req) { requests.push(req); }
 
   done();
 });
 
 after(function(done) {
   mockery.disable();
+  // xhr.restore();
   done();
 });
 
@@ -50,6 +60,7 @@ describe('Tags', function() {
     });
 
   });
+
 });
 
 describe('POST /v1/instances/{instanceId}/tags', function() {
