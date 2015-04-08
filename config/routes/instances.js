@@ -20,9 +20,9 @@ module.exports = [
 
       // Define an instance schema.
       var INSTANCE_SCHEMA = Joi.object().keys({
-        timeToLive: Joi.number().integer().min(0) // duration in seconds
-      , type: Joi.string().default('t1.micro')
+        type: Joi.string().default('t1.micro')
       , sshKeyPair: Joi.string().required()
+      , ttl: Joi.number().integer().min(1)
       });
 
       // Use the schema to validate a payload.
@@ -119,6 +119,11 @@ module.exports = [
             reservation.Instances.forEach(function(instance) {
               var instanceData = {
                 InstanceId: instance.InstanceId
+              , State: instance.State.Name
+              , InstanceType: instance.InstanceType
+              , KeyName: instance.KeyName
+              , PublicIpAddress: instance.PublicIpAddress
+              , Tags: instance.Tags
               };
               instanceInfo.push(instanceData);
             });

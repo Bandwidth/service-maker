@@ -38,9 +38,12 @@
     "grunt-mocha-istanbul": "^2.3.1",
     "hapi": "^8.1.0",
     "joi": "^5.1.0",
-    "jscs": "^1.12.0",
+    "jscs": "1.10.0",
     "mocha": "^2.1.0",
-    "request": "^2.53.0"
+    "mockery": "^1.4.0",
+    "nock": "^1.4.0",
+    "request": "^2.53.0",
+    "sinon": "^1.14.1"
   },
   "devDependencies": {}
 }
