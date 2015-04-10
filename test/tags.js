@@ -86,4 +86,24 @@ describe('Tags', function() {
 
   })
 
+  describe('#getTags', function() {
+
+    it('should be able to get tags', function(done) {
+      var instancesStub = {};
+      instancesStub.getInstance = function(instanceId, callback) {
+        var stubInstance = {
+          Tags: testTags
+        };
+        callback(stubInstance);
+      }
+      var proxyTags = proxyquire('./../lib/Tags', { './Instances': instancesStub });
+
+      proxyTags.getTags(42, function(tags) {
+        should.exist(tags);
+        done();
+      });
+    })
+
+  })
+
 });
