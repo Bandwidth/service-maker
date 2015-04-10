@@ -32,10 +32,16 @@ module.exports = [
       } else {
         // Get the validated instance information.
         var instance = validated.value;
-
+ 
         // Retrieve the instance from the pool.
         pool.getInstance(instance, function(instance) {
-          reply().code(201).header('Location', '/v1/instances/' + instance);
+          if (instance) {
+            reply().code(201).header('Location', '/v1/instances/' + instance);
+          } else {
+            // The call was okay, but we don't have anythig to return yet
+            reply().code(503).header('Retry-After', 30); // Retry again in 30 seconds
+            // (Code 503: Service Unavailable)
+          }
         });
       }
     }
