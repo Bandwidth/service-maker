@@ -32,7 +32,7 @@ module.exports = [
       } else {
         // Get the validated instance information.
         var instance = validated.value;
- 
+
         // Retrieve the instance from the pool.
         pool.getInstance(instance, function(instance) {
           if (instance) {
