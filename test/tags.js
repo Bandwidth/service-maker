@@ -59,4 +59,31 @@ describe('Tags', function() {
 
   })
 
+  describe('#removeTags', function() {
+
+    it('should allow you to remove tags', function(done) {
+      stub = sinon.stub(ec2, 'deleteTags', function(params, callback) {
+        callback();
+      });
+
+      Tags.removeTags(testTags, 42, function(instanceId) {
+        stub.called.should.be.true;
+        should.exist(instanceId);
+        instanceId.should.equal(42);
+        done();
+      })
+    })
+
+    it('should not require a callback', function(done) {
+      stub = sinon.stub(ec2, 'deleteTags', function(params, callback) {
+        callback();
+      });
+
+      Tags.removeTags(testTags, 42);
+      stub.called.should.be.true;
+      done();
+    });
+
+  })
+
 });
