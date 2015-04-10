@@ -3,13 +3,13 @@
 ## Overview 
 Service Maker makes interacting with AWS easier. It does this by providing a set of sane defaults by which news AWS instances are created, so rather than specifying each individual setting required to spin up a new instance, all you have to do is tell Service Maker the important stuff. It takes care of the rest.
 
-Service Maker is comprised of three major components. They are described in the following subsections.
+Service Maker is comprised of two major components. They are described in the following subsections.
 
 ### Server
-The server (built on hapi.js) is where most all of Service Maker's functionality lives. It is responsible for managing EC2 instances and provides an API endpoint by which the CLI and web interface may retrieve this information. 
+The server (built on hapi.js) is where most all of Service Maker's functionality lives. It is responsible for managing EC2 instances and provides an API endpoint by which the CLI may retrieve this information. 
 
 #### Instance Pooling
-Service Maker achieves its fast response time by implementing and maintaining an instance pool. Basically, Service Maker prepares instances ahead of time so they are available immediately upon request. This lets us avoid all the waiting and confiration that usually accompanies creating an EC2 instance. 
+Service Maker achieves its fast response time by implementing and maintaining an instance pool. Basically, Service Maker prepares instances ahead of time so they are available immediately upon request. This lets us avoid all the waiting and confirmation that usually accompanies creating an EC2 instance. 
 
 #### Pooling Strategies
 What types of instances are maintained by the instance pool is determined by the pooling strategy it employs. Service Maker provides a few strategies by default, but adding customized strategies is as simple as implementing a few required methods. Service Maker comes with the following strategies:
@@ -18,9 +18,6 @@ What types of instances are maintained by the instance pool is determined by the
 
 ### CLI
 Users interact with Service Maker via its CLI. The CLI is written using Commander.js and makes API calls to the server to provide its functionality. A detalied list of commands and examples may be found in the [usage](#usage) section, below. 
-
-### Web Interface
-The web interface provides a portal by which users may view statistics about AWS usage. This is mainly a tool for management. As such, the web interface does not allow for the creation and destruction of instances--this behavior is encapsulated in the CLI. 
 
 ## Installation
 Install [npm](https://www.npmjs.com/).
