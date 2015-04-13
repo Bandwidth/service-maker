@@ -60,7 +60,7 @@ module.exports = [
       if (validated.error) {
         reply(Boom.badRequest(validated.error.message));
       } else {
-        payload = JSON.parse(payload);
+        payload = validated.value;
         var instanceId = request.params.instanceId;
         var state = payload.state;
         switch (state) {
