@@ -8,7 +8,7 @@ var ec2 = new AWS.EC2({
 });
 
 var Instances = require('./../lib/Instances');
-var Helper = require('./test-helper');
+var Helper = require('./test_helper');
 
 var clock;
 var stub;
