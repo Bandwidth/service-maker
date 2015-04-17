@@ -13,6 +13,7 @@ var Helper = require('./test_helper');
 
 var pool;
 var stub;
+var clock;
 
 before(function(done) {
   pool = new InstancePool();
@@ -22,6 +23,7 @@ before(function(done) {
 
 after(function(done) {
   if (stub) { stub.restore(); }
+  if (clock) { clock.restore(); }
   done();
 })
 
@@ -40,8 +42,34 @@ describe('InstancePool', function() {
   describe('#startSshPolling', function() {
 
     it('polls instances', function(done) {
+      var tagsStub = {};
+      tagsStub.applyTags = function(tags, instanceId, callback) {
+        callback(instanceId);
+      }
+      var InstancePool = proxyquire('./../lib/InstancePool', { './Tags': tagsStub });
+      Instances.ec2 = ec2;
+
+      var now = new Date();
+      clock = sinon.useFakeTimers(now.getTime());
 
       done();
+    })
+
+  })
+
+  describe('#removeFromPool', function() {
+
+    it('removes pool tags', function(done) {
+      var tagsStub = {};
+      tagsStub.removeTags = function(tags, instanceId, callback) {
+        callback();
+      }
+      var InstancePool = proxyquire('./../lib/InstancePool', { './Tags': tagsStub });
+
+      const id = 42;
+      var spy = sinon.spy();
+      InstancePool.removeFromPool(id, spy);
+      spy.called.should.be.true;
     })
 
   })
