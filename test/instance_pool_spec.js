@@ -47,7 +47,7 @@ describe('InstancePool', function() {
         callback(instanceId);
       }
       var InstancePool = proxyquire('./../lib/InstancePool', { './Tags': tagsStub });
-      Instances.ec2 = ec2;
+      InstancePool.ec2 = ec2;
 
       var now = new Date();
       clock = sinon.useFakeTimers(now.getTime());
@@ -70,6 +70,15 @@ describe('InstancePool', function() {
       var spy = sinon.spy();
       InstancePool.removeFromPool(id, spy);
       spy.called.should.be.true;
+      done();
+    })
+
+  })
+
+  describe('#assimilate', function(done) {
+
+    it('adds sshable instances'), function(done) {
+      
     })
 
   })
