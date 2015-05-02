@@ -20,6 +20,7 @@ module.exports = function(grunt) {
         laxcomma: true
       , loopfunc: true
       , esnext: true
+      , multistr: true
       }
     }
 
