@@ -56,18 +56,19 @@ Service Maker provides a command-line endpoint for user access. A more detailed 
 
 ### Instance Management
 `smake create <InstanceType>` Returns a new instance of the specified type.  
-e.g. `smake create 't1.micro'`  
-e.g. `smake create 't1.micro' --name='super awesome instance 1'`  
+e.g. `smake create t1.micro`  
+e.g. `smake create t1.micro --name='super awesome instance 1'`  
 `smake terminate <InstanceId>` Terminates an instance.  
 `smake stop <InstanceId>` Stops an instance.  
 `smake start <InstanceId>` Starts an instance.  
 `smake restart <InstanceId>` Restarts an instance.  
-e.g. `smake restart --name='super awesome instance'` Restarts all instances whose names start with the specified name.
 
-### Instance Tagging
-`smake add tag <InstanceId> <key> <value>` Applies a tag to an instance.  
-`smake remove tag <InstanceId> <key> <value>` Removes a tag from an instance.  
-`smake remove tag <InstanceId> <key>` Removes all tags with the specified key from the instance.
+### Time to Live
+You can specify how long you would like an instance to exist in one hour increments when creating it. One hour increments are required because AWS bills hourly, so even if you only need an instance for 20 minutes you'll still be charged for the full hour. This is accomplished with the `--ttl` tag as follows:
+  
+ `smake create c3.large --ttl=1`
+ 
+ After one hour, your instance will be terminated, deleting all local data. If you plan on keeping any of the data, you should plan to have it copied locally before that time. It is at this point impossible to cancel a pending termination, so use this feature sparingly. 
 
 ### Keypair Management
 Service Make relies on a default keypair. You must download this from the AWS Console to ssh into any instances retrieved from the system. 
