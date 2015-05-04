@@ -20,9 +20,32 @@ What types of instances are maintained by the instance pool is determined by the
 Users interact with Service Maker via its CLI. The CLI is written using Commander.js and makes API calls to the server to provide its functionality. A detalied list of commands and examples may be found in the [usage](#usage) section, below. 
 
 ## Installation
-Install [npm](https://www.npmjs.com/).
+To use Service Maker, you'll need to have [node](http://www.nodejs.org) and [npm](https://www.npmjs.com/) installed. Service Maker was designed to run on Linux, specifically Ubuntu 14.04, and while it's possible to get it working on other operating systems, we only cover Linux in this guide. You can install Node however you like, but we recommend installing it via [Linuxbrew](https://github.com/Homebrew/linuxbrew). This way you won't need superuser access to manage your packages. [Here's](https://github.com/Homebrew/linuxbrew) a great guide detailing the specifics. 
 
-Clone the repo and type `npm install`. That's it. 
+After doing that, you'll want to `git clone` our repository to a memorable location on your local machine. Then `cd service-maker` and `npm install`. This will install Service Maker on your machine. Type `npm test` to make sure it works (you may need to `npm install -g grunt` to install our task manager, Grunt). If you've installed Node via Linuxbrew as we recommended, none of this will require superuser access. The next sections describe the steps necessary to get the API and CLI working, respectively. If you're only worried about installing the CLI, feel free to skip to that section.
+
+### <a name='apiinstall'></a>Installing the API
+Note: This is only required if you are deploying the server. If you're only interested in using the CLI, you should skip this section. Before the API will work, you need to configure your AWS credentials. By default, Service Maker is configured to look in your system's environment variables for these. Specifically, you need to set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. If you'll be using Service Maker regularly, you might wish to append these to your `~/.bashrc` file: 
+
+ - `export AWS_ACCESS_KEY_ID="super_secret_id"` 
+ -  `export AWS_SECRET_ACCESS_KEY="really_secret_access_key"`
+
+Something else you should note is that the system currently only supports being deployed on the same machine that uses it. We see this is an area for major future improvement. 
+
+### <a name='cli-install'></a> Installing the CLI
+The CLI is located in `lib/cli/smake.js` and can be executed by running that file directly. It's much easier, however, to add an alias to your system so you don't always have to worry about being in the service-maker directory. Do to this, add `alias smake='path/to/service-maker/lib/cli/smake.js'` to your `~/.bash_aliases` file.
+
+### Troubleshooting/Backout plan
+If anything goes wrong, don't panic! Service Maker can easily be uninstalled by deleting the service-maker directory. Before you try again, make sure you've done everything on this list:
+ 
+ - Installed Linuxbrew (requires Ruby), Node, and npm successfully and in that order
+ - If you're getting access denied errors, you didn't use Linuxbrew to install npm. You can continue by sudo'ing your commands, but it's better to start over using Linuxbrew. 
+ - If you're using the CLI and nothing is happening, it's likely that the API server isn't set up properly. Make sure it's running and your CLI is configured to access it correctly. 
+ - If AWS is complaining about credentials, make sure you've set them up [properly](#apiinstall)
+
+### Verification
+You can verify that Service Maker was installed correctly by typing `npm test`. If you wish to veryfy that your `smake` commands are doing what you want them to, you can always check the AWS Console for confirmation.
+ 
 
 ## <a name='usage'></a>Usage
 Service Maker provides a command-line endpoint for user access. A more detailed list of functionality can be reached by typing `smake --help`. A few basic commands are listed below.
@@ -75,5 +98,6 @@ The rest of the project's code goes toward making the API functional. Routing in
 
 #### Tests
 Tests are located in the `test/` directory. We use a combination of [Mocha](http://mochajs.org/), [Chai](http://chaijs.com/), and [Sinon](http://sinonjs.org/) for testing. Mocha is a behavioral testing framework (which usually means functional tests but can also mean unit, as is the case for some of our more specific tests). Chai allows us to use `should` statements. It also supports `expect` and traditional xUnit-style `assert` messages, but we think `should` is a little more readable. We use Sinon for mocking the functionality of EC2, allowing our tests to be both fast and free (yay!). Following behavioral testing conventions, test files should end in `_spec.js` (they *specify* what the tested unit should do). 
+
 
 
