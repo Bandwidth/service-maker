@@ -100,5 +100,40 @@ The rest of the project's code goes toward making the API functional. Routing in
 #### Tests
 Tests are located in the `test/` directory. We use a combination of [Mocha](http://mochajs.org/), [Chai](http://chaijs.com/), and [Sinon](http://sinonjs.org/) for testing. Mocha is a behavioral testing framework (which usually means functional tests but can also mean unit, as is the case for some of our more specific tests). Chai allows us to use `should` statements. It also supports `expect` and traditional xUnit-style `assert` messages, but we think `should` is a little more readable. We use Sinon for mocking the functionality of EC2, allowing our tests to be both fast and free (yay!). Following behavioral testing conventions, test files should end in `_spec.js` (they *specify* what the tested unit should do). 
 
+#### Key Variables
+*  Pooling strategies: `lib/poolingStrategies.js`
+  *  Can change number of instances  on start and logic for replacing instances
+*  AMI's: `lib/defaultAmis.json`
+  *  Can change the name and ami identifier for each type of instance
+*  Name of pool tag: `lib/InstancePool.js` (3 times)
+  *   Can change the default name of the Service Maker pool tag indicator
+* SSH Polling Interval: `lib/InstancePool.js`
+  * Can change how frequently Service Maker checks if accepts SSH
+*  Default SSH keypair name:  `lib/InstancePool.js`
+  *  Can change the default keypair Service Maker uses
+*  Validation for tags: `lib/Schemas.js`
+  *  Can change requirements for valid tags
+*  Number of apply Tags attempts: `lib/Tags.js`
+  * Can change how many times Service Maker tries to apply tags
+*  Location of Server – CLI: `lib/cli/smake.js` (7 times)
+  *  Can change what address Service Maker sends requests to
+*  Change default keypair: `lib/cli/smake.js`
+  *  Change what the CLI automatically passes to the API
+*  Change default instance params: `config/routes/instances.js`
+  *  Can change default instance, default TTL, and default SSH keypair
+*  Change retry header: `config/routes/instances.js`
+  *  Can change the retry interval for the 503, instance unavailable
+*  Change available instance info: `config/instances.js`
+  *  Can change what information Service Maker parses for use
 
+### Extending Service Maker
+
+#### Pooling Strategies
+A major area in which Service Maker could be extended is by the creation of additional pooling strategies. The only strategy offered currently is the naive one, which operates on simple replacement. It is not difficult, however, to imagine more complex strategies based on, for instance, time of day, previous usage, and day of the week.
+
+#### Deployment
+The Service Maker server must currently be run on the same machine as the CLI. This is not a desirable situation; it would be advantageous to allow the server to run on its own machine. To accomplish this, it would require changing the location which the CLI references when making API calls.
+
+#### Changing the AWS Region
+It might also be desirable to change the region in which AWS resources are created. Currently it defaults to the west region. Changing this would require updating all areas in which the AWS SDK is instantiated. Usually this is in the few lines of the file.
 
