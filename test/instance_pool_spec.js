@@ -13,8 +13,15 @@ var InstancePool = require('./../lib/InstancePool');
 var Helper = require('./test_helper');
 
 describe('InstancePool', function() {
+  var originalCreds;
+
   before(function() {
+    originalCreds = AWS.config.credentials;
     delete AWS.config.credentials;
+  });
+
+  after(function() {
+    AWS.config.credentials = originalCreds;
   });
 
   describe('instantiating without AWS credentials configured', function() {
@@ -25,8 +32,15 @@ describe('InstancePool', function() {
   });
 
   describe('instantiating with AWS credentials configured', function() {
+    var originalCreds;
+
     before(function() {
+      originalCreds = AWS.config.credentials;
       AWS.config.credentials = {};
+    });
+
+    after(function() {
+      AWS.config.credentials = originalCreds;
     });
 
     it ('defaults to the NaiveStrategy', function(done) {
