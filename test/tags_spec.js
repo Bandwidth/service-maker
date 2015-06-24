@@ -1,90 +1,78 @@
+var expect = require('chai').expect;
 const proxyquire = require('proxyquire');
 const should = require('chai').should();
 const sinon = require('sinon');
-var AWS = require('aws-sdk');
-var ec2 = new AWS.EC2({
-  apiVersion: '2014-10-01'
-, region: 'us-west-2'
-});
+
+var AwsHelper = require('../lib/helpers/aws');
+var ec2 = AwsHelper.createEc2Client();
 
 var Tags = require('./../lib/Tags');
 
-var testTags = [
-  {
-    Key: 'key'
-  , Value: 'value'
-  }
-];
-
-var stub;
-
-before(function(done) {
-  Tags.ec2 = ec2;
-  done();
-})
-
-afterEach(function(done) {
-  if (stub) {
-    stub.restore();
-  }
-  done();
-})
-
 describe('Tags', function() {
 
-  describe('#applyTags', function() {
+  var testTags = [
+    {
+      Key: 'key'
+    , Value: 'value'
+    }
+  ];
 
-    it('should allow you to appply tags', function(done) {
-      stub = sinon.stub(ec2, 'createTags', function(params, callback) {
+  it('uses the default AWS client configuration', function() {
+    expect(Tags.ec2.config.apiVersion).to.equal(AwsHelper.API_VERSION);
+    expect(Tags.ec2.config.region).to.equal(AwsHelper.DEFAULT_REGION);
+  });
+
+  describe('#applyTags', function() {
+    beforeEach(function() {
+      sinon.stub(Tags.ec2, 'createTags', function(params, callback) {
         callback();
       });
+    });
 
+    afterEach(function() {
+      Tags.ec2.createTags.restore();
+    });
+
+    it('should allow you to appply tags', function(done) {
       Tags.applyTags(testTags, 5, function(instanceId) {
-        stub.called.should.be.true;
+        Tags.ec2.createTags.called.should.be.true;
         should.exist(instanceId);
         instanceId.should.equal(5);
         done();
       });
     });
 
-    it('should not require a callback', function(done) {
-      stub = sinon.stub(ec2, 'createTags', function(params, callback) {
-        callback();
-      });
-
+    it('should not require a callback', function() {
       Tags.applyTags(testTags, 42);
-      stub.called.should.be.true;
-      done();
+      Tags.ec2.createTags.called.should.be.true;
     });
-
-  })
+  });
 
   describe('#removeTags', function() {
-
-    it('should allow you to remove tags', function(done) {
-      stub = sinon.stub(ec2, 'deleteTags', function(params, callback) {
+    beforeEach(function() {
+      sinon.stub(Tags.ec2, 'deleteTags', function(params, callback) {
         callback();
       });
+    });
 
+    afterEach(function() {
+      Tags.ec2.deleteTags.restore();
+    });
+
+    it('should allow you to remove tags', function(done) {
       Tags.removeTags(testTags, 42, function(instanceId) {
-        stub.called.should.be.true;
+        Tags.ec2.deleteTags.called.should.be.true;
         should.exist(instanceId);
         instanceId.should.equal(42);
         done();
       })
     })
 
-    it('should not require a callback', function(done) {
-      stub = sinon.stub(ec2, 'deleteTags', function(params, callback) {
-        callback();
-      });
-
+    it('should not require a callback', function() {
       Tags.removeTags(testTags, 42);
-      stub.called.should.be.true;
-      done();
+      Tags.ec2.deleteTags.called.should.be.true;
     });
-
-  })
+  });
 
   describe('#getTags', function() {
 

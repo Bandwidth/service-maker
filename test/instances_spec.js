@@ -1,50 +1,55 @@
+var expect = require('chai').expect;
 const proxyquire = require('proxyquire');
 const should = require('chai').should();
 const sinon = require('sinon');
+
 var AWS = require('aws-sdk');
-var ec2 = new AWS.EC2({
-  apiVersion: '2014-10-01'
-, region: 'us-west-2'
-});
+var AwsHelper = require('../lib/helpers/aws');
+var ec2 = AwsHelper.createEc2Client();
 
 var Instances = require('./../lib/Instances');
 var Helper = require('./test_helper');
 
-var clock;
-var stub;
-var tagsStub;
-
-before(function(done) {
-  Instances.ec2 = ec2;
-  done();
-})
-
-after(function(done) {
-  Helper.enableLogging(); // In case any test forgot
-  done();
-})
-
-afterEach(function(done) {
-  if (stub) {
-    stub.restore();
-  }
-  if (clock) {
-    clock.restore();
-  }
-  done();
-})
-
 describe('Instances', function() {
 
-  describe('#terminate', function() {
+  var clock;
+  var stub;
+  var tagsStub;
 
-    it('should terminate the instance', function(done) {
-      stub = sinon.stub(ec2, 'terminateInstances', function(params, callback) {
+  after(function(done) {
+    Helper.enableLogging(); // In case any test forgot
+    done();
+  })
+
+  afterEach(function(done) {
+    if (stub) {
+      stub.restore();
+    }
+    if (clock) {
+      clock.restore();
+    }
+    done();
+  })
+
+  it('uses the default AWS client configuration', function() {
+    expect(Instances.ec2.config.apiVersion).to.equal(AwsHelper.API_VERSION);
+    expect(Instances.ec2.config.region).to.equal(AwsHelper.DEFAULT_REGION);
+  });
+
+  describe('#terminate', function() {
+    before(function() {
+      sinon.stub(Instances.ec2, 'terminateInstances', function(params, callback) {
         callback();
       });
+    });
 
+    after(function() {
+      Instances.ec2.terminateInstances.restore();
+    });
+
+    it('should terminate the instance', function(done) {
       Instances.terminate(42, function(callback) {
-        stub.called.should.be.true;
+        Instances.ec2.terminateInstances.called.should.be.true;
         done();
       });
     })
@@ -52,9 +57,8 @@ describe('Instances', function() {
   })
 
   describe('#getInstance', function() {
-
-    it('should get the instance', function(done) {
-      stub = sinon.stub(ec2, 'describeInstances', function(params, callback) {
+    before(function() {
+      sinon.stub(Instances.ec2, 'describeInstances', function(params, callback) {
         var data = {
           Reservations: [{
             Instances: [{
@@ -64,9 +68,15 @@ describe('Instances', function() {
         };
         callback(undefined, data);
       });
+    });
 
+    after(function() {
+      Instances.ec2.describeInstances.restore();
+    });
+
+    it('should get the instance', function(done) {
       Instances.getInstance(42, function(instance) {
-        stub.called.should.be.true;
+        Instances.ec2.describeInstances.called.should.be.true;
         instance.InstanceId.should.equal(42);
         done();
       });
@@ -169,7 +179,6 @@ describe('Instances', function() {
         callback(instanceId);
       }
       var Instances = proxyquire('./../lib/Instances', { './Tags': tagsStub });
-      Instances.ec2 = ec2;
       stub = sinon.stub(Instances, 'scheduleTermination', function(id, deathTime, callback) {
         callback();
       });
@@ -185,9 +194,8 @@ describe('Instances', function() {
   })
 
   describe('#getInstance', function() {
-
-    it('should get an instance', function(done) {
-      stub = sinon.stub(ec2, 'describeInstances', function(params, callback) {
+    before(function() {
+      sinon.stub(Instances.ec2, 'describeInstances', function(params, callback) {
         var data = {
           Reservations: [{
             Instances: [{
@@ -197,7 +205,13 @@ describe('Instances', function() {
         };
         callback(undefined, data);
       });
+    });
 
+    after(function() {
+      Instances.ec2.describeInstances.restore();
+    });
+
+    it('should get an instance', function(done) {
       Instances.getInstance(42, function(instance) {
         should.exist(instance);
         instance.InstanceId.should.equal(42);
@@ -240,45 +254,58 @@ describe('Instances', function() {
   })
 
   describe('#canSsh', function() {
-
-    it('should determine if not sshable', function(done) {
-      stub = sinon.stub(ec2, 'describeInstanceStatus', function(params, callback) {
-        var data = {
-          InstanceStatuses: []
-        };
-        callback(undefined, data);
+    describe('for an instance that is not fully provisioned', function() {
+      before(function() {
+        sinon.stub(Instances.ec2, 'describeInstanceStatus', function(params, callback) {
+          var data = {
+            InstanceStatuses: []
+          };
+          callback(null, data);
+        });
       });
 
-      Instances.canSsh(42, function(sshable) {
-        stub.called.should.be.true;
-        should.exist(sshable);
-        sshable.should.be.false;
-        done();
+      after(function() {
+        Instances.ec2.describeInstanceStatus.restore();
       });
+
+      it('should determine that SSH in not available', function(done) {
+        Instances.canSsh(42, function(sshable) {
+          stub.called.should.be.true;
+          should.exist(sshable);
+          sshable.should.be.false;
+          done();
+        });
+      });
+    });
+
+    describe('for an instance that is fully provisioned', function() {
+      before(function() {
+        sinon.stub(Instances.ec2, 'describeInstanceStatus', function(params, callback) {
+          var data = {
+            InstanceStatuses: [{
+              SystemStatus: {
+                Details: [{
+                  Status: 'passed'
+                }]
+              }
+            }]
+          };
+          callback(undefined, data);
+        });
+      });
+
+      after(function() {
+        Instances.ec2.describeInstanceStatus.restore();
+      });
+
+      it('should determine if is sshable', function(done) {
+        Instances.canSsh(42, function(sshable) {
+          stub.called.should.be.true;
+          should.exist(sshable);
+          sshable.should.be.true;
+          done();
+        });
+      })
     })
-
-    it('should determine if is sshable', function(done) {
-      stub = sinon.stub(ec2, 'describeInstanceStatus', function(params, callback) {
-        var data = {
-          InstanceStatuses: [{
-            SystemStatus: {
-              Details: [{
-                Status: 'passed'
-              }]
-            }
-          }]
-        };
-        callback(undefined, data);
-      });
-
-      Instances.canSsh(42, function(sshable) {
-        stub.called.should.be.true;
-        should.exist(sshable);
-        sshable.should.be.true;
-        done();
-      });
-    })
-
   })
-
 })

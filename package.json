@@ -50,6 +50,7 @@
     "text-table": "^0.2.0"
   },
   "devDependencies": {
+    "apparition": "^1.0.0",
     "touch": "0.0.3"
   }
 }

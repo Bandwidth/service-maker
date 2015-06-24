@@ -27,6 +27,9 @@ module.exports = function(grunt) {
   , mochaIstanbul: {
       coverage: {
         src: 'test'
+      , options: {
+          recursive: true
+        }
       }
     }
   });
