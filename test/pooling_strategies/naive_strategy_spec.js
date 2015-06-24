@@ -3,13 +3,13 @@ const should = require('chai').should();
 
 const NaiveStrategy = require('./../../lib/poolingStrategies/NaiveStrategy');
 
-var strat;
-
-beforeEach(function(done) {
-  strat = new NaiveStrategy();
-})
-
 describe('NaiveStrategy', function() {
+  var strat;
+
+  beforeEach(function() {
+    strat = new NaiveStrategy();
+  })
+
   describe('.getRequiredInstances', function() {
     it('should return an array of required instances', function(done) {
       done();

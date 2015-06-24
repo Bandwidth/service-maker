@@ -4,10 +4,8 @@ const sinon = require('sinon');
 const should = require('chai').should();
 
 var AWS = require('aws-sdk');
-var ec2 = new AWS.EC2({
-  apiVersion: '2014-10-01'
-, region: 'us-west-2'
-});
+var AwsHelper = require('../lib/helpers/aws');
+var ec2 = AwsHelper.createEc2Client();
 
 var InstancePool = require('./../lib/InstancePool');
 var Helper = require('./test_helper');
@@ -41,6 +39,12 @@ describe('InstancePool', function() {
 
     after(function() {
       AWS.config.credentials = originalCreds;
+    });
+
+    it('uses the default AWS client configuration', function() {
+      var pool = new InstancePool();
+      expect(pool.ec2.config.apiVersion).to.equal(AwsHelper.API_VERSION);
+      expect(pool.ec2.config.region).to.equal(AwsHelper.DEFAULT_REGION);
     });
 
     it ('defaults to the NaiveStrategy', function(done) {
@@ -157,7 +161,6 @@ describe('InstancePool', function() {
           callback(instanceId);
         }
         var InstancePool = proxyquire('./../lib/InstancePool', { './Tags': tagsStub });
-        InstancePool.ec2 = ec2;
 
         done();
       });
