@@ -1,51 +1,65 @@
-module.exports = function(grunt) {
+"use strict";
+module.exports = function (grunt) {
 
-  var _ = grunt.util._;
+	var _ = grunt.util._;
 
-  var sourceFiles = [ '*.js', 'config/**/*.js', 'lib/**/*.js', 'travis/**/*.js' ];
-  var testFiles = [ 'test/**/*.js' ];
-  var allFiles = sourceFiles.concat(testFiles);
+	var sourceFiles = [ "*.js", "config/**/*.js", "lib/**/*.js", "travis/**/*.js" ];
+	var testFiles = [ "test/**/*.js" ];
+	var allFiles = sourceFiles.concat(testFiles);
 
-  grunt.initConfig({
-    jscs: {
-      src: allFiles
-    , options: {
-        config: '.jscsrc'
-      }
-    }
+	var defaultJsHintOptions = grunt.file.readJSON("./.jshint.json");
+	var testJsHintOptions = _.defaults(
+		grunt.file.readJSON("./test/.jshint.json"),
+		defaultJsHintOptions
+	);
 
-  , jshint: {
-      src: sourceFiles
-    , options: {
-        laxcomma: true
-      , loopfunc: true
-      , esnext: true
-      , multistr: true
-      }
-    }
+	grunt.initConfig({
+		jscs : {
+			src     : allFiles,
+			options : {
+				config : ".jscsrc"
+			}
+		},
 
-  , mochaIstanbul: {
-      coverage: {
-        src: 'test'
-      , options: {
-          recursive: true
-        }
-      }
-    }
-  });
+		jshint : {
+			src     : sourceFiles,
+			options : defaultJsHintOptions,
+			test    : {
+				options : testJsHintOptions,
+				files   : {
+					test : testFiles
+				}
+			}
+		},
+		mochaIstanbul : {
+			coverage : {
+				src     : "test/unit",
+				options : {
+					check : {
+						statements : 100,
+						branches   : 100,
+						lines      : 100,
+						functions  : 100
+					},
 
-  // Load plugins
-  grunt.loadNpmTasks('grunt-contrib-jshint');
-  grunt.loadNpmTasks('grunt-jscs');
-  grunt.loadNpmTasks('grunt-mocha-istanbul');
+					mask      : "**/*_spec.js",
+					recursive : true
+				}
+			}
+		}
+	});
 
-  // Rename tasks
-  grunt.task.renameTask('mocha_istanbul', 'mochaIstanbul');
+	// Load plugins
+	grunt.loadNpmTasks("grunt-contrib-jshint");
+	grunt.loadNpmTasks("grunt-jscs");
+	grunt.loadNpmTasks("grunt-mocha-istanbul");
 
-  // Register tasks
-  grunt.registerTask('test', [ 'mochaIstanbul:coverage' ]);
-  grunt.registerTask('lint', 'Check for common code problems.', [ 'jshint' ]);
-  grunt.registerTask('style', 'Check for style conformity.', [ 'jscs' ]);
-  grunt.registerTask('default', [ 'lint', 'style', 'test' ]);
+	// Rename tasks
+	grunt.task.renameTask("mocha_istanbul", "mochaIstanbul");
 
+	// Register tasks
+	grunt.registerTask("test", [ "mochaIstanbul:coverage" ]);
+	grunt.registerTask("lint", "Check for common code problems.", [ "jshint" ]);
+	grunt.registerTask("style", "Check for style conformity.", [ "jscs" ]);
+	grunt.registerTask("default", [ "lint", "style", "test" ]);
 };
