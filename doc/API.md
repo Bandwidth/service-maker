@@ -1,49 +1,27 @@
 # Resource Definitions
 
-## `Pool`
+### `Instance`
 
 ```
 {
-	"name"     : string,            // a friendly name for record-keeping
-	"id"       : string,            // a unique ID
-	"strategy" : string [ naive ]   // a pooling strategy name ('naive' is currently supported)
-}
-```
-
-## `Instance`
-
-```
-{
-	"id" : string, // a unique ID
-	"type" : string, // the EC2 instance type
-	"ami" : string, // the location of the AMI
+	"id"    : string,                      // a unique ID
+	"type"  : string,                      // the EC2 instance type
+	"ami"   : string,                      // the AMI ID for the instance
+	"state" : string [ pending | ready ],  // the state of the instance
+	"uri"   : string                       // the uri location of the server
 }
 ```
 
 # REST API
 
-## `GET` `/pools`
-Lists all instance pools available to the user.
+## Instance Management
 
-#### Payload
-```
-{
-	"pools" : [
-		<Pool resources>
-	]
-}
-```
+### `GET` /v1/instances<span style="opacity: 0.5">?query=args</span>
+Lists all instances which have been provisioned by Service Maker. Can be queried using field names from the [instance model](#instance).
 
-## `GET` `/pools/{poolId}`
-Describes the specified pool. Returns a description of the pool according to the schema [above](#pool).
+#### Returns
 
-## `PUT` `/pools/{poolId}`
-Updates the specified pool. Returns a description of the updated pool according to the schema [above](#pool).
-
-## `GET` `/pools/{poolId}/instances`
-Lists all instances which are provisioned and pooled in the specified pool.
-
-#### Payload
+* `200` OK: Returns a payload which contains a list of instances in the following format:
 ```
 {
 	"instances" : [
@@ -52,14 +30,48 @@ Lists all instances which are provisioned and pooled in the specified pool.
 }
 ```
 
-## `POST` `/pools/{poolId}/instances`
-Creates a new instance in the specified pool. Returns a description of the created instance resource according to the schema [above](#instance).
+### `POST` /v1/instances
+Creates a new instance of the specified type.
 
-## `GET` `/pools/{poolId}/instances/{instanceId}`
-Describes the specified instance resource according to the schema [above](#instance).
+#### Payload format
+```
+{
+	"ami"  : string, // the AMI ID for the instance
+	"type" : string  // [OPTIONAL] an EC2 instance type. Defaults to t2.micro
+}
+```
 
-## `PUT` `/pools/{poolId}/instances/{instanceId}`
-Updates the specified instance. Returns a description of the updated instance resource according to the schema [above](#instance).
+#### Returns
 
-## `DELETE` `/pools/{poolId}/instances/{instanceId}`
+* `201` Created: Returns a description of the created instance resource according to the schema [above](#instance). The reply body will contain a `Location` header which points to the canonical location of the Instance resource.
+
+* `400` Bad Request: Returned if the instance configuration parameters are invalid (for instance, if the specified instance type does not exist).
+
+### `GET` /v1/instances/<span style="opacity: 0.5">{instanceId}</span>
+Describes the specified instance.
+
+#### Returns
+
+* `200` OK: Returns an instance resource according to the schema [above](#instance).
+
+* `404` Not Found
+
+### `PUT` /v1/instances/<span style="opacity: 0.5">{instanceId}</span>
+Updates the specified instance.
+
+#### Returns
+
+* `200` OK: Returns a description of the updated instance resource according to the schema [above](#instance).
+
+* `400` Bad Request: The updated configuration for the instance is invalid, no change has been made.
+
+* `404` Not Found
+
+### `DELETE` /v1/instances/<span style="opacity: 0.5">{instanceId}</span>
 Terminates the specified instance.
+
+#### Returns
+
+* `204` No Content: The resource has been deleted.
+
+* `404` Not Found
