@@ -6,7 +6,7 @@
 {
 	"id"    : string,                      // a unique ID
 	"type"  : string,                      // the EC2 instance type
-	"ami"   : string,                      // the AMI ID for the instance
+	"ami"   : string,                      // the AMI ID for the instance.
 	"state" : string [ pending | ready ],  // the state of the instance
 	"uri"   : string                       // the uri location of the server
 }
@@ -36,7 +36,7 @@ Creates a new instance of the specified type.
 #### Payload format
 ```
 {
-	"ami"  : string, // the AMI ID for the instance
+	"ami"  : string, // [OPTIONAL] the AMI ID for the instance. Defaults to a blank Ubuntu AMI.
 	"type" : string  // [OPTIONAL] an EC2 instance type. Defaults to t2.micro
 }
 ```
