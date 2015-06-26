@@ -3,7 +3,7 @@
 ## `I` Creating a new Instance
 
 ### `Ia` With a valid AMI and the default instance type
-1. The User wants to create a new instance, provisioned with the `ami-myapp` image, which she has preconfigured in her Service Maker instance.
+1. The User wants to create a new instance, provisioned with the `ami-myapp` image.
 
 2. The User posts to `/v1/instances` with the payload:
 ```
@@ -30,7 +30,7 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 5. The user begins using her new EC2 instance.
 
 ### `Ib` With a valid AMI and a specified instance type
-1. The User wants to create a new `m1.medium` instance, provisioned with the `ami-myapp` image, which he has preconfigured in his Service Maker instance.
+1. The User wants to create a new `m1.medium` instance, provisioned with the `ami-myapp` image.
 
 2. The User posts to `/v1/instances` with the payload:
 ```
@@ -58,7 +58,7 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 5. The user begins using his new EC2 instance.
 
 ### `Ic` With an invalid AMI
-1. The User wants to create a new instance, provisioned with the `ami-invalid` image, which she has **not** preconfigured in her Service Maker instance.
+1. The User wants to create a new instance, provisioned with the `ami-invalid` image, which does not exist.
 
 2. The User posts to `/v1/instances` with the payload:
 ```
@@ -71,7 +71,7 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 ```
 400 Bad Request
   {
-    "message" : "The specified AMI has not been configured."
+    "message" : "The specified AMI does not exist."
   }
 ```
 
