@@ -3,11 +3,14 @@
 //Modules required
 var Hapi = require("hapi");
 
+//Setting the port for the application
+var port = process.env.PORT || 8080;
+
 //Server initialization
 var server = new Hapi.Server();
 server.connection({
 	host : "0.0.0.0",
-	port : ~~process.env.PORT||3000
+	port : port
 });
 
 //Adding routes to the server
