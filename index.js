@@ -6,7 +6,7 @@ var Hapi = require("hapi");
 //Server initialization
 var server = new Hapi.Server();
 server.connection({
-	host : "localhost",
+	host : "service-maker.herokuapp.com",
 	port : 80
 });
 
