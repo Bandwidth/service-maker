@@ -32,7 +32,7 @@
     "grunt-mocha-istanbul": "^2.3.1",
     "jscs": "1.10.0",
     "hapi": "^8.6.1",
-    "mocha": "^2.2.5",
-    "expect.js": "0.3.1"
+    "apparition": "^1.0.0",
+    "chai": "^3.0.0"
   }
 }
