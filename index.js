@@ -1,4 +1,5 @@
 "use strict";
+
 //Modules required
 var Hapi = require("hapi");
 
