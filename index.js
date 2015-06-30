@@ -9,21 +9,18 @@ var port = process.env.PORT || 8080;
 //Server initialization
 var server = new Hapi.Server();
 server.connection({
-	host : "0.0.0.0",
+	host : process.env.HOST,
 	port : port
 });
 
-//Adding routes to the server
-server.route({
-	method  : "GET",
-	path    : "/",
-	handler : function (request, reply) {
-		reply("Hello").code(200);
+server.register ([
+		{
+			register : require("./plugins/rest.js")
+		}
+	],
+	function () {
+		server.start(function () {
+			console.log("Server started at: " + server.info.uri);
+		});
 	}
-
-});
-
-//Starting the server
-server.start(function () {
-	console.log("Server running at:", server.info.uri);
-});
+);
