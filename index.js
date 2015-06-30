@@ -7,7 +7,7 @@ var Hapi = require("hapi");
 var server = new Hapi.Server();
 server.connection({
 	host : "0.0.0.0",
-	port : 3000
+	port : ~~process.env.PORT||3000
 });
 
 //Adding routes to the server
@@ -15,7 +15,7 @@ server.route({
 	method  : "GET",
 	path    : "/",
 	handler : function (request, reply) {
-		reply("").code(200);
+		reply("Hello").code(200);
 	}
 
 });
