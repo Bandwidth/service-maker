@@ -6,8 +6,8 @@ var Hapi = require("hapi");
 //Server initialization
 var server = new Hapi.Server();
 server.connection({
-	host : "service-maker.herokuapp.com",
-	port : 80
+	host : "0.0.0.0",
+	port : ~~process.env.PORT||3000
 });
 
 //Adding routes to the server
