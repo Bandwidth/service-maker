@@ -8,8 +8,8 @@ var expect = require("chai").expect;
 describe("The services schema", function () {
 
 	var VALID_ID = "somestringwith12903";
-	var VALID_TYPE = "t2.small";
-	var VALID_AMI = "ami-imagename";
+	var VALID_TYPE = "t2.micro";
+	var VALID_AMI = "ami-d05e75b8";
 	var VALID_STATE_PENDING = "pending";
 	var VALID_STATE_READY = "ready";
 	var VALID_URI = "https://location.com";
@@ -21,13 +21,13 @@ describe("The services schema", function () {
 	var INVALID_URI = "this is not a uri";
 
 	function describeInitWith (description, options, fails) {
-		options = _.defaults(
+		var expectedOptions = _.defaults(
 			options,
 			{
-				id    : null,
+				id    : undefined,
 				type  : "t2.micro",
 				ami   : "ami-d05e75b8",
-				state : VALID_STATE_PENDING,
+				state : "pending",
 				uri   : null
 			}
 		);
@@ -35,7 +35,7 @@ describe("The services schema", function () {
 			if (!fails) {
 				it("returns a services object", function () {
 					var services = new Services(options);
-					expect(services, "properties").to.deep.equal(options);
+					expect(services, "properties").to.deep.equal(expectedOptions);
 				});
 			}
 			else {
@@ -118,6 +118,15 @@ describe("The services schema", function () {
 			uri   : null
 		},
 		true
+	);
+
+	describeInitWith("type missing",
+		{
+			id    : VALID_ID,
+			ami   : VALID_AMI,
+			state : VALID_STATE_PENDING,
+			uri   : null
+		}
 	);
 
 	describeInitWith("some missing parameters",
