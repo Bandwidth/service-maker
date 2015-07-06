@@ -4,6 +4,8 @@ var Services = require("../../../lib/services/services-db");
 var _ = require("lodash");
 var expect   = require("chai").expect;
 var Genesis = require("genesis");
+var Sinon = require("sinon");
+var Bluebird = require("bluebird");
 
 describe("the Services ", function () {
 	it("is frozen", function () {
@@ -72,115 +74,39 @@ describe("the Services ", function () {
 	describeCreate ("with ami and an invalid parameter", { extra : "ami-test", ami : "ami-test" }, true);
 
 	describeCreate ("with type and an invalid parameter", { extra : "ami-test", type : "pending" }, true);
-/*
-	describe("is creating a new instance with no parameters", function () {
 
+	describeCreate ("with type and an invalid ami", { ami : [ "ami-test" ], type : "pending" }, true);
+
+	describeCreate ("with ami and invalid type", { ami : "ami-test", type : [ "something" ] }, true);
+
+	describe("when the mapper fails to create a new model", function () {
 		var result;
+		var mapperStub;
+		var parameter = { ami : "ami-d05e75b8", type : "pending" };
+
 		before(function () {
-			var services = new Services();
-			return services.create()
-			.then(function (model) {
-				result = model;
+			var mapper = new Genesis.MemoryMapper();
+
+			mapperStub = Sinon.stub(mapper, "create")
+				.returns(Bluebird.resolve(new Error("Simulated Failure")));
+
+			var services = new Services(mapper);
+			return services.create(parameter)
+			.then(function (err) {
+				result = err;
 			});
 		});
 
-		it("returns instance with default parameters", function () {
-			expect(result.id).to.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
-			expect(result.type).to.equal("t2.micro");
-			expect(result.ami).to.equal("ami-d05e75b8");
-			expect(result.state).to.equal("pending");
-			expect(result.uri).to.equal(null);
+		after(function () {
+			mapperStub.restore();
 		});
 
+		it("throws an error", function () {
+			console.log(result);
+			expect(result, "error").to.be.an.instanceOf(Error);
+			// we check the message to be sure it's the fake error we made before
+			expect(result.message, "error message").to.equal("Simulated Failure");
+		});
 	});
-
-	describe("is creating a new instance with ami and type", function () {
-
-		var result;
-		var VALID_TYPE = "t2.mini";
-		var VALID_AMI = "ami-testami";
-		before(function () {
-			var services = new Services();
-			return services.create(VALID_AMI, VALID_TYPE)
-			.then(function (model) {
-				result = model;
-			});
-		});
-
-		it("returns instance with the ami and type specified", function () {
-			expect(result.id).to.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
-			expect(result.type).to.equal(VALID_TYPE);
-			expect(result.ami).to.equal(VALID_AMI);
-			expect(result.state).to.equal("pending");
-			expect(result.uri).to.equal(null);
-		});
-
-	});
-
-	describe("is creating a new instance with only ami specified", function () {
-
-		var result;
-		var VALID_AMI = "ami-testami";
-		before(function () {
-			var services = new Services();
-			return services.create(VALID_AMI)
-			.then(function (model) {
-				result = model;
-			});
-		});
-
-		it("returns instance with the specified ami and the other parameters are default", function () {
-			expect(result.id).to.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
-			expect(result.type).to.equal("t2.micro");
-			expect(result.ami).to.equal(VALID_AMI);
-			expect(result.state).to.equal("pending");
-			expect(result.uri).to.equal(null);
-		});
-
-	});
-
-	describe("is creating a new instance with an extra parameter specified", function () {
-
-		var result;
-		var VALID_TYPE = "t2.micro";
-		var VALID_AMI = "ami-d05e75b8";
-		before(function () {
-			var services = new Services();
-			return services.create(VALID_AMI, VALID_TYPE, "extra parameter")
-			.then(function (model) {
-				result = model;
-			});
-		});
-
-		it("returns instance and ignores the extra parameter", function () {
-			expect(result.id).to.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
-			expect(result.type).to.equal(VALID_TYPE);
-			expect(result.ami).to.equal("ami-d05e75b8");
-			expect(result.state).to.equal("pending");
-			expect(result.uri).to.equal(null);
-		});
-
-		describe("is creating a new instance with an extra parameter specified", function () {
-
-		var result;
-		var VALID_TYPE = "t2.micro";
-		var INVALID_AMI = ["ami-d05e75b8"];
-		before(function () {
-			var services = new Services();
-			return services.create(INVALID_AMI, VALID_TYPE)
-			.then(function (model) {
-				result = model;
-			});
-		});
-
-		it("returns instance and ignores the extra parameter", function () {
-			expect(result.id).to.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
-			expect(result.type).to.equal(VALID_TYPE);
-			expect(result.ami).to.equal("ami-d05e75b8");
-			expect(result.state).to.equal("pending");
-			expect(result.uri).to.equal(null);
-		});
-
-	});*/
 
 });
