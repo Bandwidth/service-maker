@@ -1,24 +1,21 @@
 "use strict";
 
 var Instance = require("../../../lib/models/services-schema");
-var _ = require("lodash");
-
-var expect = require("chai").expect;
+var _        = require("lodash");
+var expect   = require("chai").expect;
 
 describe("The services schema", function () {
 
-	var VALID_ID = "somestringwith12903";
-	var VALID_TYPE = "t2.micro";
-	var VALID_AMI = "ami-d05e75b8";
+	var VALID_ID            = "somestringwith12903";
+	var VALID_TYPE          = "t2.micro";
+	var VALID_AMI           = "ami-d05e75b8";
 	var VALID_STATE_PENDING = "pending";
-	var VALID_STATE_READY = "ready";
-	var VALID_URI = "https://location.com";
+	var VALID_STATE_READY   = "ready";
+	var VALID_URI           = "https://location.com";
 
-	//var INVALID_ID = "somestringwith12903";
-	//var INVALID_TYPE = "t2.small";
-	var INVALID_AMI = [ "ami-imagename", "ami-imagename-2" ];
-	var INVALID_STATE = "something else";
-	var INVALID_URI = "this is not a uri";
+	var INVALID_AMI         = [ "ami-imagename", "ami-imagename-2" ];
+	var INVALID_STATE       = "something else";
+	var INVALID_URI         = "this is not a uri";
 
 	function describeInitWith (description, options, fails) {
 		var expectedOptions = _.defaults(
@@ -40,7 +37,7 @@ describe("The services schema", function () {
 			}
 			else {
 				it("fails", function () {
-					expect(function () { return new Instance(options); }, "throws").to.throw;
+					expect(function () { return new Instance(options); }, "throws").to.throw(Error);
 				});
 			}
 		});
