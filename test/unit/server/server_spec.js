@@ -1,11 +1,10 @@
 "use strict";
 
-var Request = require("apparition").Request;
+var Request  = require("apparition").Request;
 var Bluebird = require("bluebird");
-var Hapi = require("hapi");
-var Rest = require("../../lib/plugins/rest");
-
-var expect = require("chai").expect;
+var Hapi     = require("hapi");
+var Rest     = require("../../../lib/plugins/rest");
+var expect   = require("chai").expect;
 
 Bluebird.promisifyAll(Hapi);
 
