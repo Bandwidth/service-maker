@@ -1,6 +1,6 @@
 "use strict";
 
-var Services = require("../../../lib/models/services-schema");
+var Instance = require("../../../lib/models/services-schema");
 var _ = require("lodash");
 
 var expect = require("chai").expect;
@@ -34,13 +34,13 @@ describe("The services schema", function () {
 		describe("initialized with " + description, function () {
 			if (!fails) {
 				it("returns a services object", function () {
-					var services = new Services(options);
-					expect(services, "properties").to.deep.equal(expectedOptions);
+					var instances = new Instance(options);
+					expect(instances, "properties").to.deep.equal(expectedOptions);
 				});
 			}
 			else {
 				it("fails", function () {
-					expect(function () { return new Services(options); }, "throws").to.throw;
+					expect(function () { return new Instance(options); }, "throws").to.throw;
 				});
 			}
 		});
