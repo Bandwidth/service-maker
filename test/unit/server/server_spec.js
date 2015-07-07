@@ -1,34 +1,25 @@
 "use strict";
 
-var Request  = require("apparition").Request;
-var Bluebird = require("bluebird");
-var Hapi     = require("hapi");
-var Rest     = require("../../../lib/plugins/rest");
-var expect   = require("chai").expect;
+var Rest   = require("../../../lib/plugins/rest");
+var Sinon  = require("sinon");
+var expect = require("chai").expect;
 
-Bluebird.promisifyAll(Hapi);
+describe("The server", function () {
+	var restStub;
+	var server;
 
-describe("The Rest plugin", function () {
-	it("is a Hapi plugin", function () {
-		expect(Rest, "attributes").to.have.property("register")
-		.that.is.a("function")
-		.and.that.has.property("attributes")
-		.that.has.property("name", "rest");
+	before(function () {
+		// the stub must call next() to proceed with server startup
+		restStub = Sinon.stub(Rest, "register").callsArg(2);
+		server = require("../../../lib/server");
 	});
 
-	describe("when registered", function () {
-		var server = new Hapi.Server();
+	after(function () {
+		restStub.restore();
+		return server.stopAsync();
+	});
 
-		before(function () {
-			server.connection();
-			return server.registerAsync(Rest);
-		});
-
-		it("provides the '/' route", function () {
-			return new Request("GET", "/").inject(server)
-			.then(function (response) {
-				expect(response.statusCode, "status").to.equal(200);
-			});
-		});
+	it("registers the Rest plugin", function () {
+		expect(restStub.calledOnce, "registered").to.be.true;
 	});
 });
