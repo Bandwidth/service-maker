@@ -4,7 +4,7 @@ var Instance = require("../../../lib/models/Instance");
 var _        = require("lodash");
 var expect   = require("chai").expect;
 
-describe("The services schema", function () {
+describe("The instance schema", function () {
 
 	var VALID_ID            = "somestringwith12903";
 	var VALID_TYPE          = "t2.micro";
@@ -30,7 +30,7 @@ describe("The services schema", function () {
 		);
 		describe("initialized with " + description, function () {
 			if (!fails) {
-				it("returns a services object", function () {
+				it("returns an Insance object", function () {
 					var instances = new Instance(options);
 					expect(instances, "properties").to.deep.equal(expectedOptions);
 				});
