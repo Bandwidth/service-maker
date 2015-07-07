@@ -4,7 +4,11 @@ var Instance = require("../../../lib/models/Instance");
 var _        = require("lodash");
 var expect   = require("chai").expect;
 
+<<<<<<< HEAD
 describe("The Instance model", function () {
+=======
+describe("The instance schema", function () {
+>>>>>>> POST done, test cases required
 
 	var VALID_ID            = "somestringwith12903";
 	var VALID_TYPE          = "t2.micro";
