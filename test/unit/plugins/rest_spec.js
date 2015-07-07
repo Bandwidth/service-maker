@@ -74,9 +74,10 @@ describe("The Rest plugin", function () {
 				type : VALID_TYPE
 			});
 			return request.inject(server)
-			.catch(function (err) {
-				console.log("here");
-				expect(err.statusCode, "status").to.equal(400);
+			.then(function (response) {
+				expect(response.statusCode, "status").to.equal(400);
+				expect(response.payload)
+				.to.equal("Bad Request: Returned if the instance configuration parameters are invalid.");
 			});
 		});
 	});
