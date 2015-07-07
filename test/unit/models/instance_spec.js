@@ -1,6 +1,6 @@
 "use strict";
 
-var Instance = require("../../../lib/models/services-schema");
+var Instance = require("../../../lib/models/Instance");
 var _        = require("lodash");
 var expect   = require("chai").expect;
 
@@ -43,7 +43,7 @@ describe("The services schema", function () {
 		});
 	}
 
-	describeInitWith("all valid parameters",
+	describeInitWith("all valid parameters, state - ready",
 		{
 			id    : VALID_ID,
 			type  : VALID_TYPE,
@@ -53,7 +53,7 @@ describe("The services schema", function () {
 		}
 	);
 
-	describeInitWith("all valid parameters",
+	describeInitWith("all valid parameters, state - pending",
 		{
 			id    : VALID_ID,
 			type  : VALID_TYPE,
@@ -123,7 +123,8 @@ describe("The services schema", function () {
 			ami   : VALID_AMI,
 			state : VALID_STATE_PENDING,
 			uri   : null
-		}
+		},
+		false
 	);
 
 	describeInitWith("some missing parameters",
