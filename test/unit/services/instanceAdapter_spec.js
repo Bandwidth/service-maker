@@ -72,19 +72,7 @@ describe("The Adapter class ", function () {
 		});
 
 	});
-/*
-	describe("with an extra parameter", function () {
-		var DEFAULT_TYPE = "t2.micro";
-		var DEFAULT_AMI  = "ami-d05e75b8";
-		var instances    = new instanceAdapter();
-		it("fails", function () {
-			expect(function () {
-				return new instances.createInstance(DEFAULT_AMI, DEFAULT_TYPE, "extra parameter");
-			}).to.throw(Error).to.match(/Extra parameter present/);
-		});
 
-	});
-*/
 	describeCreate ("with ami and type", { ami : "ami-test", type : "pending" }, true);
 
 	describeCreate ("with type and an invalid ami", { ami : [ "ami-test" ], type : "pending" }, true);
