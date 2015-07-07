@@ -8,7 +8,7 @@ var Bluebird        = require("bluebird");
 var Sinon           = require("sinon");
 require("sinon-as-promised")(Bluebird);
 
-describe("the Adapter class ", function () {
+describe("The Adapter class ", function () {
 	it("is frozen", function () {
 		expect(Object.isFrozen(InstanceAdapter), "frozen").to.be.true;
 	});
