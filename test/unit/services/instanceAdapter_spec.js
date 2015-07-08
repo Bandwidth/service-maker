@@ -1,6 +1,7 @@
 "use strict";
 
 var InstanceAdapter = require("../../../lib/services/instanceAdapter");
+var Instance        = require("../../../lib/models/Instance");
 var _               = require("lodash");
 var expect          = require("chai").expect;
 var Genesis         = require("genesis");
@@ -33,11 +34,10 @@ describe("The InstanceAdapter class ", function () {
 			it("returns a new instance", function () {
 				instances.createInstance(optionsToPass.ami, optionsToPass.type)
 				.then(function (result) {
+					expect(result).to.be.an.instanceOf(Instance);
 					expect(result.id).to.match(ID_REGEX);
 					expect(result.type).to.equal(expectedOptions.type);
 					expect(result.ami).to.equal(expectedOptions.ami);
-					expect(result.state).to.equal("pending");
-					expect(result.uri).to.equal(null);
 				});
 			});
 		});
@@ -55,8 +55,6 @@ describe("The InstanceAdapter class ", function () {
 				expect(result.id).to.match(ID_REGEX);
 				expect(result.type).to.equal(DEFAULT_TYPE);
 				expect(result.ami).to.equal(DEFAULT_AMI);
-				expect(result.state).to.equal("pending");
-				expect(result.uri).to.equal(null);
 			});
 		});
 
