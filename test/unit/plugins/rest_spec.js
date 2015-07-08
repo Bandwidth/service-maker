@@ -68,7 +68,7 @@ describe("The Rest plugin", function () {
 			return server.registerAsync(Rest);
 		});
 
-		it("returns an error", function () {
+		it("returns an error with statusCode 400", function () {
 			var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 				ami  : INVALID_AMI,
 				type : VALID_TYPE
