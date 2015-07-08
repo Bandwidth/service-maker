@@ -1,13 +1,13 @@
 "use strict";
 
-var Request  = require("apparition").Request;
-var Bluebird = require("bluebird");
-var Hapi     = require("hapi");
-var Rest     = require("../../../lib/plugins/rest");
-var expect   = require("chai").expect;
-var Genesis  = require("genesis");
-var Sinon    = require("sinon");
-var Instance = require("../../../lib/services/instanceAdapter");
+var Request      = require("apparition").Request;
+var Bluebird     = require("bluebird");
+var Hapi         = require("hapi");
+var Rest         = require("../../../lib/plugins/rest");
+var expect       = require("chai").expect;
+var MemoryMapper = require("genesis").MemoryMapper;
+var Sinon        = require("sinon");
+var Instance     = require("../../../lib/services/instanceAdapter");
 
 require("sinon-as-promised")(Bluebird);
 Bluebird.promisifyAll(Hapi);
@@ -16,9 +16,12 @@ describe("The Rest plugin", function () {
 	var VALID_INSTANCE_ID = "faef26e3-b7fb-4756-9135-be3785133682";
 	var VALID_AMI         = "ami-default";
 	var VALID_TYPE        = "t2.micro";
+	var DEFAULT_AMI       = "ami-d05e75b8";
+	var DEFAULT_TYPE      = "t2.micro";
 	var INVALID_QUERY     = "clumsy-cheetah";
-	var server            = new Hapi.Server();
-	var mapper            = new Genesis.MemoryMapper();
+	var INVALID_AMI       = [ "ami-defualt" ];
+	//var server            = new Hapi.Server();
+	//var mapper            = new Genesis.MemoryMapper();
 
 	it("is a Hapi plugin", function () {
 		expect(Rest, "attributes").to.have.property("register")
@@ -28,42 +31,116 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("when registered", function () {
-		var instances = new Instance(mapper);
+		var server = new Hapi.Server();
+
+		before(function () {
+			server.connection();
+			return server.registerAsync(Rest);
+		});
+
+		after(function () {
+			return server.stopAsync();
+		});
+
+		it("provides the '/' route", function () {
+			return new Request("GET", "/").inject(server)
+			.then(function (response) {
+				expect(response.statusCode, "status").to.equal(200);
+			});
+		});
+	});
+
+	describe("when a request is made", function () {
+		var location = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+		var server   = new Hapi.Server();
+		var mapper   = new MemoryMapper();
 
 		before(function () {
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
 				options  : {
-					mapper    : mapper,
-					instances : instances
+					mapper : mapper
 				}
 			});
 		});
 
-		describe("when registered", function () {
-			it("provides the '/' route", function () {
-				return new Request("GET", "/").inject(server)
+		after(function () {
+			return server.stopAsync();
+		});
+
+		describe("with valid parameters passed", function () {
+			it("creates the instance and returns the canonical url", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
 				.then(function (response) {
-					expect(response.statusCode, "status").to.equal(200);
+					response.payload = JSON.parse(response.payload);
+					expect(response.statusCode, "status").to.equal(201);
+					expect(response.headers.location, "location").to.match(location);
+					expect(response.payload.ami, "ami").to.equal(VALID_AMI);
+					expect(response.payload.type, "type").to.equal(VALID_TYPE);
+					/*Required for GET Requests*/
+					VALID_INSTANCE_ID = response.payload.id;
 				});
 			});
 		});
-		it("creates the instance and returns the canonical url", function () {
-			var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-				ami  : VALID_AMI,
-				type : VALID_TYPE
-			});
-			return request.inject(server)
-			.then(function (response) {
-				var payload;
-				expect(response.statusCode, "status").to.equal(201);
 
-				payload           = JSON.parse(response.payload);
-				VALID_INSTANCE_ID = payload.id;
+		describe("with no parameters passed", function () {
+			it("creates the instance and returns the canonical url", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json");
+				return request.inject(server)
+				.then(function (response) {
+					response.payload = JSON.parse(response.payload);
+					expect(response.statusCode, "status").to.equal(201);
+					expect(response.headers.location, "location").to.match(location);
+					expect(response.payload.ami, "ami").to.equal(DEFAULT_AMI);
+					expect(response.payload.type, "type").to.equal(DEFAULT_TYPE);
+				});
 			});
 		});
-		describe("getting an invalid instance", function () {
+
+		describe("with invalid parameter(s) passed", function () {
+			it("returns an error with statusCode 400", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : INVALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					expect(response.statusCode, "status").to.equal(400);
+					expect(response.payload)
+					.to.equal("Bad Request: Please check the parameters passed.");
+				});
+			});
+		});
+
+		describe("when there is a problem with the database connection", function () {
+			var result;
+
+			before(function () {
+				Sinon.stub(mapper, "create", function () {
+					return Bluebird.reject(new Error("Simulated Failure."));
+				});
+
+				return new Request("POST", "/v1/instances").inject(server)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				mapper.create.restore();
+			});
+
+			it("displays an error page", function () {
+				expect(result.statusCode).to.equal(500);
+			});
+		});
+
+		describe("with an invalid instance", function () {
 			var result;
 
 			before(function () {
@@ -78,7 +155,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("getting a valid instance", function () {
+		describe("with a valid instance", function () {
 			var result;
 
 			before(function () {
@@ -93,7 +170,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("getting a list of valid instances", function () {
+		describe("with a valid type", function () {
 			var result;
 
 			before(function () {
@@ -103,7 +180,7 @@ describe("The Rest plugin", function () {
 				});
 			});
 
-			it("returns an array of instances", function () {
+			it("returns an array of instances with the given type", function () {
 				var payload;
 				expect(result.statusCode,"status").to.equal(200);
 				payload = JSON.parse(result.payload);
@@ -111,7 +188,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("getting an invalid instance by sending non-exisitng Instance Id and type", function () {
+		describe("with an invalid instance by sending non-exisitng Instance Id and type", function () {
 			var result;
 
 			before(function () {
@@ -130,7 +207,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("Sending a GET request with all invalid parameters", function () {
+		describe("with all invalid parameters for a GET Request", function () {
 			var result;
 
 			before(function () {
@@ -146,7 +223,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("Sending a GET request with a mix of valid and invalid parameters", function () {
+		describe("with a mix of valid and invalid parameters", function () {
 			var result;
 
 			before(function () {
@@ -162,7 +239,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("Sending a GET request with a valid ID", function () {
+		describe("with a valid ID", function () {
 			var result;
 
 			before(function () {
@@ -182,7 +259,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("Sending a GET request with a valid AMI", function () {
+		describe("with a valid AMI", function () {
 			var result;
 
 			before(function () {
@@ -198,7 +275,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("Sending a GET request with state=pending", function () {
+		describe("with state=pending", function () {
 			var result;
 
 			before(function () {
@@ -214,7 +291,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("Sending a GET request an invalid URI", function () {
+		describe("with invalid URI", function () {
 			var result;
 
 			before(function () {
@@ -232,27 +309,31 @@ describe("The Rest plugin", function () {
 				expect(payload.instances.length).equal(0);
 			});
 		});
+	});
+
+	describe("when registered with stubbed instance", function () {
+		var server    = new Hapi.Server();
+		var mapper    = new MemoryMapper();
+		var instances = new Instance(mapper);
+
+		before(function () {
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					mapper    : mapper,
+					instances : instances
+				}
+			});
+		});
+
+		after(function () {
+			return server.stopAsync();
+		});
 
 		describe("failing to find an instance for specified instanceId", function () {
 			var result;
-/*
-			before(function () {
-				Sinon.stub(mapper, "findOne", function () {
-					return Bluebird.reject(new Error("Simulated Failure."));
-				});
-				return new Request("GET", "/v1/" + VALID_INSTANCE_ID).inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
 
-			after(function () {
-				mapper.findOne.restore();
-			});
-
-			it("displays an error page", function () {
-				expect(result.statusCode).to.equal(500);
-			});*/
 			before(function () {
 				Sinon.stub(instances, "getInstance").rejects(new Error("Simulated Failure"));
 
