@@ -8,12 +8,12 @@ var Bluebird        = require("bluebird");
 var Sinon           = require("sinon");
 require("sinon-as-promised")(Bluebird);
 
-describe("The Adapter class ", function () {
-	it("is frozen", function () {
+describe("The InstanceAdapter class ", function () {
+	it("is immutable", function () {
 		expect(Object.isFrozen(InstanceAdapter), "frozen").to.be.true;
 	});
 
-	function describeCreate (description, options, fails) {
+	function describeCreate (description, options) {
 		var optionsToPass = _.clone(options, true);
 		var expectedOptions = _.defaults(
 			options,
@@ -28,61 +28,49 @@ describe("The Adapter class ", function () {
 
 		describe("creating a new instance " + description, function () {
 			var instances = new InstanceAdapter();
+			var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
-			if (!fails) {
-				it("returns a new instance", function () {
-					var result;
-					instances.createInstance(optionsToPass.ami, optionsToPass.type)
-					.then(function (model) {
-						result = model;
-						expect(result.id).to.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
-						expect(result.type).to.equal(expectedOptions.type);
-						expect(result.ami).to.equal(expectedOptions.ami);
-						expect(result.state).to.equal("pending");
-						expect(result.uri).to.equal(null);
-					});
+			it("returns a new instance", function () {
+				instances.createInstance(optionsToPass.ami, optionsToPass.type)
+				.then(function (result) {
+					expect(result.id).to.match(ID_REGEX);
+					expect(result.type).to.equal(expectedOptions.type);
+					expect(result.ami).to.equal(expectedOptions.ami);
+					expect(result.state).to.equal("pending");
+					expect(result.uri).to.equal(null);
 				});
-			}
-			else {
-				it("fails", function () {
-					expect(function () { return new instances.createInstance(optionsToPass.ami, optionsToPass.type);
-					}, "throws").to.throw;
-				});
-			}
+			});
 		});
 	}
 
 	describe("creating a new instance", function () {
-		var DEFAULT_TYPE = "t2.micro";
-		var DEFAULT_AMI  = "ami-d05e75b8";
-		var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
-		var instances    = new InstanceAdapter();
-		var result;
 		it("returns a new instance with default values", function () {
+			var DEFAULT_TYPE = "t2.micro";
+			var DEFAULT_AMI  = "ami-d05e75b8";
+			var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+			var instances    = new InstanceAdapter();
+
 			instances.createInstance()
-			.then(function (model) {
-				result = model;
+			.then(function (result) {
 				expect(result.id).to.match(ID_REGEX);
 				expect(result.type).to.equal(DEFAULT_TYPE);
 				expect(result.ami).to.equal(DEFAULT_AMI);
 				expect(result.state).to.equal("pending");
 				expect(result.uri).to.equal(null);
-
 			});
 		});
 
 	});
 
-	describeCreate ("with ami and type", { ami : "ami-test", type : "pending" }, true);
+	describeCreate ("with ami and type", { ami : "ami-test", type : "pending" });
 
-	describeCreate ("with type and an invalid ami", { ami : [ "ami-test" ], type : "pending" }, true);
-
-	describeCreate ("with ami and invalid type", { ami : "ami-test", type : [ "something" ] }, true);
+	describeCreate ("with ami and type", { ami : "ami-test", type : "ready" });
 
 	describe("when the mapper fails to create a new model", function () {
 		var result;
 		var mapperStub;
-		var parameter = { ami : "ami-d05e75b8", type : "t2.micro" };
+		var DEFAULT_TYPE = "t2.micro";
+		var DEFAULT_AMI  = "ami-d05e75b8";
 
 		before(function () {
 			var mapper = new Genesis.MemoryMapper();
@@ -91,7 +79,7 @@ describe("The Adapter class ", function () {
 			mapperStub = Sinon.stub(mapper, "create")
 				.rejects(new Error("Simulated Failure"));
 
-			return instances.createInstance(parameter.ami, parameter.type)
+			return instances.createInstance(DEFAULT_AMI, DEFAULT_TYPE)
 			.catch(function (err) {
 				result = err;
 			});
