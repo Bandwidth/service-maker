@@ -2,7 +2,6 @@
 
 var InstanceAdapter = require("../../../lib/services/instanceAdapter");
 var Instance        = require("../../../lib/models/Instance");
-var _               = require("lodash");
 var expect          = require("chai").expect;
 var Genesis         = require("genesis");
 var Bluebird        = require("bluebird");
@@ -14,35 +13,6 @@ describe("The InstanceAdapter class ", function () {
 		expect(Object.isFrozen(InstanceAdapter), "frozen").to.be.true;
 	});
 
-	function describeCreate (description, options) {
-		var optionsToPass = _.clone(options, true);
-		var expectedOptions = _.defaults(
-			options,
-			{
-				id    : undefined,
-				type  : "t2.micro",
-				ami   : "ami-d05e75b8",
-				state : "pending",
-				uri   : null
-			}
-		);
-
-		describe("creating a new instance " + description, function () {
-			var instances = new InstanceAdapter();
-			var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
-
-			it("returns a new instance", function () {
-				instances.createInstance(optionsToPass.ami, optionsToPass.type)
-				.then(function (result) {
-					expect(result).to.be.an.instanceOf(Instance);
-					expect(result.id).to.match(ID_REGEX);
-					expect(result.type).to.equal(expectedOptions.type);
-					expect(result.ami).to.equal(expectedOptions.ami);
-				});
-			});
-		});
-	}
-
 	describe("creating a new instance", function () {
 		it("returns a new instance with default values", function () {
 			var DEFAULT_TYPE = "t2.micro";
@@ -52,6 +22,7 @@ describe("The InstanceAdapter class ", function () {
 
 			instances.createInstance()
 			.then(function (result) {
+				expect(result).to.be.an.instanceOf(Instance);
 				expect(result.id).to.match(ID_REGEX);
 				expect(result.type).to.equal(DEFAULT_TYPE);
 				expect(result.ami).to.equal(DEFAULT_AMI);
@@ -60,9 +31,23 @@ describe("The InstanceAdapter class ", function () {
 
 	});
 
-	describeCreate ("with ami and type", { ami : "ami-test", type : "pending" });
+	describe("creating a new instance, passing ami and type", function () {
+		it("returns a new instance with default values", function () {
+			var DEFAULT_TYPE = "t2.micro";
+			var DEFAULT_AMI  = "ami-d05e75b8";
+			var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+			var instances    = new InstanceAdapter();
 
-	describeCreate ("with ami and type", { ami : "ami-test", type : "ready" });
+			instances.createInstance(DEFAULT_AMI, DEFAULT_TYPE)
+			.then(function (result) {
+				expect(result).to.be.an.instanceOf(Instance);
+				expect(result.id).to.match(ID_REGEX);
+				expect(result.type).to.equal(DEFAULT_TYPE);
+				expect(result.ami).to.equal(DEFAULT_AMI);
+			});
+		});
+
+	});
 
 	describe("when the mapper fails to create a new model", function () {
 		var result;
