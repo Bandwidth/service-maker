@@ -24,16 +24,25 @@
     "url": "https://github.com/inetCatapult/service-maker/issues"
   },
   "homepage": "https://github.com/inetCatapult/service-maker",
-  "dependencies": {
+  "devDependencies": {
+    "sinon": "^1.15.4",
+    "sinon-as-promised": "^4.0.0",
+    "chai": "^3.0.0",
+    "apparition": "^1.0.0",
     "grunt": "^0.4.5",
     "grunt-cli": "^0.1.13",
     "grunt-contrib-jshint": "^0.11.0",
     "grunt-jscs": "1.2.0",
     "grunt-mocha-istanbul": "^2.3.1",
     "jscs": "1.10.0",
+    "lodash": "^2.4.2"
+  },
+  "dependencies": {
     "hapi": "^8.6.1",
     "bluebird": "^2.9.30",
-    "apparition": "^1.0.0",
-    "chai": "^3.0.0"
+    "genesis": "^1.0.0",
+    "joi": "^6.5.0",
+    "mongodb": "^2.0.35",
+    "uuid": "^2.0.1"
   }
 }
