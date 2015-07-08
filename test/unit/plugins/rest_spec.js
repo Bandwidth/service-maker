@@ -135,6 +135,4 @@ describe("The Rest plugin", function () {
 			});
 		});
 	});
-
-
 });
