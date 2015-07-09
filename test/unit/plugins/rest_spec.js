@@ -4,24 +4,24 @@ var Request      = require("apparition").Request;
 var Bluebird     = require("bluebird");
 var Hapi         = require("hapi");
 var Rest         = require("../../../lib/plugins/rest");
-var expect       = require("chai").expect;
 var MemoryMapper = require("genesis").MemoryMapper;
+var expect       = require("chai").expect;
 var Sinon        = require("sinon");
 var Instance     = require("../../../lib/services/instanceAdapter");
+require("sinon-as-promised");
 
-require("sinon-as-promised")(Bluebird);
 Bluebird.promisifyAll(Hapi);
 
 describe("The Rest plugin", function () {
-	var VALID_INSTANCE_ID = "faef26e3-b7fb-4756-9135-be3785133682";
-	var VALID_AMI         = "ami-default";
-	var VALID_TYPE        = "t2.micro";
-	var DEFAULT_AMI       = "ami-d05e75b8";
-	var DEFAULT_TYPE      = "t2.micro";
-	var INVALID_QUERY     = "clumsy-cheetah";
-	var INVALID_AMI       = [ "ami-defualt" ];
-	//var server            = new Hapi.Server();
-	//var mapper            = new Genesis.MemoryMapper();
+	var VALID_INSTANCE_ID;
+	var VALID_AMI     = "ami-default";
+	var VALID_TYPE    = "t2.micro";
+
+	var INVALID_AMI   = [ "ami-defualt" ];
+
+	var DEFAULT_AMI   = "ami-d05e75b8";
+	var DEFAULT_TYPE  = "t2.micro";
+	var INVALID_QUERY = "clumsy-cheetah";
 
 	it("is a Hapi plugin", function () {
 		expect(Rest, "attributes").to.have.property("register")
@@ -310,7 +310,6 @@ describe("The Rest plugin", function () {
 			});
 		});
 	});
-
 	describe("when registered with stubbed instance", function () {
 		var server    = new Hapi.Server();
 		var mapper    = new MemoryMapper();

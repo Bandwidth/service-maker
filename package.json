@@ -44,9 +44,6 @@
     "joi": "^6.5.0",
     "mongodb": "^2.0.35",
     "uuid": "^2.0.1",
-    "sinon": "^1.15.4",
-    "sinon-as-promised": "^4.0.0",
-    "boom": "^2.8.0",
-    "apparition": "^1.0.0"
+    "boom": "^2.8.0"
   }
 }
