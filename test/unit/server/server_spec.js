@@ -17,7 +17,7 @@ describe("The server", function () {
 
 	after(function () {
 		restStub.restore();
-		MongoMapper.restore();
+		mongoStub.restore();
 		return server.stopAsync();
 	});
 
