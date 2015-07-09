@@ -17,6 +17,7 @@ describe("The server", function () {
 
 	after(function () {
 		restStub.restore();
+		mongoStub.restore();
 		return server.stopAsync();
 	});
 
