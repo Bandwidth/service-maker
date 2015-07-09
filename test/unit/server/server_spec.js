@@ -8,8 +8,8 @@ describe("The server", function () {
 	var restStub;
 	var server;
 	before(function () {
-		restStub    = Sinon.stub(Rest, "register").callsArg(2);
-		server      = require("../../../lib/server");
+		restStub = Sinon.stub(Rest, "register").callsArg(2);
+		server   = require("../../../lib/server");
 	});
 
 	after(function () {
