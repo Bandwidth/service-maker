@@ -22,6 +22,23 @@ describe("The Rest plugin", function () {
 	var DEFAULT_AMI   = "ami-d05e75b8";
 	var DEFAULT_TYPE  = "t2.micro";
 	var INVALID_QUERY = "clumsy-cheetah";
+	var location      = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+
+	function createAnInstance (server) {
+
+		return new Request("POST","/v1/instances").mime("application/json").payload({
+			ami  : VALID_AMI,
+			type : VALID_TYPE
+			}).inject(server)
+			.then(function (response) {
+				response.payload = JSON.parse(response.payload);
+				expect(response.statusCode, "status").to.equal(201);
+				expect(response.headers.location, "location").to.match(location);
+				expect(response.payload.ami, "ami").to.equal(VALID_AMI);
+				expect(response.payload.type, "type").to.equal(VALID_TYPE);
+				VALID_INSTANCE_ID = response.payload.id;
+			});
+	}
 
 	it("is a Hapi plugin", function () {
 		expect(Rest, "attributes").to.have.property("register")
@@ -50,10 +67,9 @@ describe("The Rest plugin", function () {
 		});
 	});
 
-	describe("when a request is made", function () {
-		var location     = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
-		var server       = new Hapi.Server();
+	describe("creating a new instance", function () {
 		var mapper = new MemoryMapper();
+		var server = new Hapi.Server();
 
 		before(function () {
 			server.connection();
@@ -82,8 +98,6 @@ describe("The Rest plugin", function () {
 					expect(response.headers.location, "location").to.match(location);
 					expect(response.payload.ami, "ami").to.equal(VALID_AMI);
 					expect(response.payload.type, "type").to.equal(VALID_TYPE);
-					/*Required for GET Requests*/
-					VALID_INSTANCE_ID = response.payload.id;
 				});
 			});
 		});
@@ -139,7 +153,27 @@ describe("The Rest plugin", function () {
 				expect(result.statusCode).to.equal(500);
 			});
 		});
-		describe("with an invalid instance", function () {
+	});
+
+	describe("getting an instance", function () {
+		var mapper = new MemoryMapper();
+		var server = new Hapi.Server();
+
+		before(function () {
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					mapper : mapper
+				}
+			});
+		});
+
+		after(function () {
+			return server.stopAsync();
+		});
+
+		describe("with an invalid instance id", function () {
 			var result;
 
 			before(function () {
@@ -155,35 +189,52 @@ describe("The Rest plugin", function () {
 		});
 
 		describe("with a valid instance", function () {
-			var result;
-
 			before(function () {
-				return new Request("GET", "/v1/instances/" + VALID_INSTANCE_ID).inject(server)
-				.then(function (response) {
-					result = response;
-				});
+				createAnInstance(server);
 			});
 
-			it("shows the instance", function () {
-				expect(result.statusCode,"status").to.equal(200);
+			it("gets the instance of the requsted id", function () {
+				return new Request("GET", "/v1/instances/" + VALID_INSTANCE_ID).inject(server)
+				.then(function (response) {
+					expect(response.statusCode,"status").to.equal(200);
+				});
+			});
+		});
+	});
+
+	describe("querying for instances", function () {
+
+		var mapper   = new MemoryMapper();
+		var server   = new Hapi.Server();
+
+		before(function () {
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					mapper : mapper
+				}
 			});
 		});
 
+		after(function () {
+			return server.stopAsync();
+		});
+
 		describe("with a valid type", function () {
-			var result;
 
 			before(function () {
-				return new Request("GET", "/v1/instances?type=" + VALID_TYPE).inject(server)
-				.then(function (response) {
-					result = response;
-				});
+				createAnInstance(server);
 			});
 
 			it("returns an array of instances with the given type", function () {
 				var payload;
-				expect(result.statusCode,"status").to.equal(200);
-				payload = JSON.parse(result.payload);
-				expect(payload.instances).to.have.length.of.at.least(1);
+				return new Request("GET", "/v1/instances?type=" + VALID_TYPE).inject(server)
+				.then(function (response) {
+					expect(response.statusCode,"status").to.equal(200);
+					payload = JSON.parse(response.payload);
+					expect(payload.instances).to.have.length.of.at.least(1);
+				});
 			});
 		});
 
@@ -203,38 +254,6 @@ describe("The Rest plugin", function () {
 				expect(result.statusCode,"status").to.equal(200);
 				payload = JSON.parse(result.payload);
 				expect(payload.instances.length).equal(0);
-			});
-		});
-
-		describe("with all invalid parameters for a GET Request", function () {
-			var result;
-
-			before(function () {
-				return new Request("GET", "/v1/instances?extra=test&random=thisiswrong")
-				.inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			it("returns a Bad Request", function () {
-				expect(result.statusCode,"status").to.equal(400);
-			});
-		});
-
-		describe("with a mix of valid and invalid parameters", function () {
-			var result;
-
-			before(function () {
-				return new Request("GET", "/v1/instances?extra=test&random=thisiswrong&type=" + VALID_TYPE)
-				.inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			it("returns a Bad Request", function () {
-				expect(result.statusCode,"status").to.equal(400);
 			});
 		});
 
@@ -309,7 +328,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 	});
-	describe("when registered with stubbed instance", function () {
+	describe("encountering an internal error", function () {
 		var server    = new Hapi.Server();
 		var mapper    = new MemoryMapper();
 		var instances = new Instance(mapper);
