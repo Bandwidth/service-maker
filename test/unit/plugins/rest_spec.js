@@ -327,6 +327,22 @@ describe("The Rest plugin", function () {
 				expect(payload.instances.length).equal(0);
 			});
 		});
+
+		describe("with multiple values for a parameter", function () {
+			var result;
+
+			before(function () {
+				return new Request("GET", "/v1/instances?ami=" + INVALID_QUERY + "&ami=" + INVALID_QUERY)
+				.inject(server)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			it("fails and returns a Bad Request", function () {
+				expect(result.statusCode,"status").to.equal(400);
+			});
+		});
 	});
 	describe("encountering an internal error", function () {
 		var server    = new Hapi.Server();
