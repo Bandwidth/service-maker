@@ -10,6 +10,7 @@ var InstanceAdapter = require("../../../lib/services/instanceAdapter.js");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var SshAdapter      = require("../../../lib/services/sshAdapter");
 var Sinon           = require("sinon");
+
 require("sinon-as-promised");
 
 Bluebird.promisifyAll(Hapi);
