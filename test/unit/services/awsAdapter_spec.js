@@ -55,5 +55,70 @@ describe("The AwsAdapter class ", function () {
 				result = response;
 			});
 		});
+		});
+
+		after(function () {
+			//awsAdapterStub.restore();
+		});
+
+		it("returns a new instance with the ami and type provided", function () {
+			expect(result, "response").to.equal("test");
+		});
+
+	});
+
+	describe("creating a new instance with a invalid ami", function () {
+		var awsAdapterStub;
+		var result;
+		var awsAdapter = new AwsAdapter({
+			id   : INVALID_IMAGE_ID,
+			type : DEFAULT_INSTANCE_TYPE
+		});
+
+		before(function () {
+			awsAdapterStub = Sinon.stub(awsAdapter, "runInstances").onFirstCall()
+			.returns(Bluebird.resolve("test"));
+
+			awsAdapter.runInstances()
+			.then(function (response) {
+				result = response;
+			});
+		});
+
+		after(function () {
+			//awsAdapterStub.restore();
+		});
+
+		it("returns a new instance with the ami and type provided", function () {
+			expect(result, "response").to.equal("test");
+		});
+
+	});
+
+	describe("creating a new instance with an invalid type", function () {
+		var awsAdapterStub;
+		var result;
+		var awsAdapter = new AwsAdapter({
+			id   : DEFAULT_IMAGE_ID,
+			type : INVALID_INSTANCE_TYPE
+		});
+
+		before(function () {
+			awsAdapterStub = Sinon.stub(awsAdapter, "runInstances").onFirstCall()
+			.returns(Bluebird.resolve("test"));
+
+			awsAdapter.runInstances()
+			.then(function (response) {
+				result = response;
+			});
+		});
+
+		after(function () {
+			//awsAdapterStub.restore();
+		});
+
+		it("returns a new instance with the ami and type provided", function () {
+			expect(result, "response").to.equal("test");
+		});
 	});
 });
