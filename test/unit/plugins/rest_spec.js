@@ -7,7 +7,7 @@ var Rest         = require("../../../lib/plugins/rest");
 var MemoryMapper = require("genesis").MemoryMapper;
 var expect       = require("chai").expect;
 var Sinon        = require("sinon");
-var Instance     = require("../../../lib/services/instanceAdapter");
+var Instance     = require("../../../lib/services/instanceAdapter.js");
 require("sinon-as-promised");
 
 Bluebird.promisifyAll(Hapi);
