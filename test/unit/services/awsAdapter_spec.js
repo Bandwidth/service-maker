@@ -10,7 +10,6 @@ var ec2        = new AWS.EC2();
 Bluebird.promisifyAll(ec2);
 
 require("sinon-as-promised")(Bluebird);
-
 describe("The AwsAdapter class ", function () {
 	var DEFAULT_AMI  = "ami-d05e75b8";
 	var DEFAULT_TYPE = "t2.micro";
@@ -49,7 +48,6 @@ describe("The AwsAdapter class ", function () {
 				};
 				return Bluebird.resolve(data);
 			});
-
 			awsAdapter.runInstances(VALID_INSTANCE)
 			.then(function (response) {
 				result = response;
@@ -58,7 +56,7 @@ describe("The AwsAdapter class ", function () {
 		});
 
 		after(function () {
-			//awsAdapterStub.restore();
+			runInstancesStub.runInstanceAsync.restore();
 		});
 
 		it("returns a new instance with the ami and type provided", function () {
@@ -86,7 +84,7 @@ describe("The AwsAdapter class ", function () {
 		});
 
 		after(function () {
-			//awsAdapterStub.restore();
+			//awsAdapterStub.runInstances.restore();
 		});
 
 		it("returns a new instance with the ami and type provided", function () {

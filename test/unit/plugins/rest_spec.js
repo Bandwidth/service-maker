@@ -10,7 +10,6 @@ var InstanceAdapter = require("../../../lib/services/instanceAdapter.js");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var SshAdapter      = require("../../../lib/services/sshAdapter");
 var Sinon           = require("sinon");
-
 require("sinon-as-promised");
 
 Bluebird.promisifyAll(Hapi);
@@ -54,6 +53,7 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("creating a new instance", function () {
+
 		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
 		var createInstanceStub;
@@ -299,6 +299,7 @@ describe("The Rest plugin", function () {
 					}
 				});
 			});
+		});
 
 			after(function () {
 				mapper.create.restore();
@@ -317,6 +318,11 @@ describe("The Rest plugin", function () {
 				});
 
 			});
+			return request.inject(server)
+			.catch(function (response) {
+				expect(response.statusCode).to.equal(500);
+			});
+
 		});
 	});
 
@@ -512,7 +518,7 @@ describe("The Rest plugin", function () {
 	describe("encountering an internal error", function () {
 		var server    = new Hapi.Server();
 		var mapper    = new MemoryMapper();
-		var instances = new Instance(mapper);
+		var instances = new InstanceAdapter(mapper);
 
 		before(function () {
 			server.connection();
