@@ -29,15 +29,15 @@ describe("The Rest plugin", function () {
 		return new Request("POST","/v1/instances").mime("application/json").payload({
 			ami  : VALID_AMI,
 			type : VALID_TYPE
-			}).inject(server)
-			.then(function (response) {
-				response.payload = JSON.parse(response.payload);
-				expect(response.statusCode, "status").to.equal(201);
-				expect(response.headers.location, "location").to.match(location);
-				expect(response.payload.ami, "ami").to.equal(VALID_AMI);
-				expect(response.payload.type, "type").to.equal(VALID_TYPE);
-				VALID_INSTANCE_ID = response.payload.id;
-			});
+		}).inject(server)
+		.then(function (response) {
+			response.payload = JSON.parse(response.payload);
+			expect(response.statusCode, "status").to.equal(201);
+			expect(response.headers.location, "location").to.match(location);
+			expect(response.payload.ami, "ami").to.equal(VALID_AMI);
+			expect(response.payload.type, "type").to.equal(VALID_TYPE);
+			VALID_INSTANCE_ID = response.payload.id;
+		});
 	}
 
 	it("is a Hapi plugin", function () {
