@@ -1,13 +1,13 @@
 "use strict";
 
-var Request      = require("apparition").Request;
-var Bluebird     = require("bluebird");
-var Hapi         = require("hapi");
-var Rest         = require("../../../lib/plugins/rest");
-var MemoryMapper = require("genesis").MemoryMapper;
-var expect       = require("chai").expect;
-var Sinon        = require("sinon");
-var Instance     = require("../../../lib/services/instanceAdapter.js");
+var Request         = require("apparition").Request;
+var Bluebird        = require("bluebird");
+var Hapi            = require("hapi");
+var Rest            = require("../../../lib/plugins/rest");
+var MemoryMapper    = require("genesis").MemoryMapper;
+var expect          = require("chai").expect;
+var InstanceAdapter = require("../../../lib/services/instanceAdapter.js");
+var Sinon           = require("sinon");
 require("sinon-as-promised");
 
 Bluebird.promisifyAll(Hapi);
@@ -68,20 +68,26 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("creating a new instance", function () {
-		var mapper = new MemoryMapper();
 		var server = new Hapi.Server();
-
+		var instanceAdapter = new InstanceAdapter();
+		var instanceAdapterStub;
 		before(function () {
+			instanceAdapterStub = Sinon.stub(instanceAdapter, "createInstance")
+			.returns(Bluebird.resolve({
+				ami   : "uuid",
+				type  : "t2.micro",
+				state : "pending",
+				url   : ""
+			}));
+
 			server.connection();
 			return server.registerAsync({
-				register : Rest,
-				options  : {
-					mapper : mapper
-				}
+				register : Rest
 			});
 		});
 
 		after(function () {
+			instanceAdapterStub.restore();
 			return server.stopAsync();
 		});
 
@@ -131,27 +137,38 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("when there is a problem with the database connection", function () {
-			var result;
+	});
 
-			before(function () {
-				Sinon.stub(mapper, "create", function () {
-					return Bluebird.reject(new Error("Simulated Failure."));
-				});
+	describe("when there is a problem with the database connection", function () {
+		var mapper = new MemoryMapper();
+		var server = new Hapi.Server();
 
-				return new Request("POST", "/v1/instances").inject(server)
-				.then(function (response) {
-					result = response;
-				});
+		before(function () {
+			Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					mapper : mapper
+				}
+			});
+		});
+
+		after(function () {
+			mapper.create.restore();
+			return server.stopAsync();
+		});
+
+		it("displays an error page", function () {
+			var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+				ami  : VALID_AMI,
+				type : VALID_TYPE
+			});
+			return request.inject(server)
+			.catch(function (response) {
+				expect(response.statusCode).to.equal(500);
 			});
 
-			after(function () {
-				mapper.create.restore();
-			});
-
-			it("displays an error page", function () {
-				expect(result.statusCode).to.equal(500);
-			});
 		});
 	});
 
@@ -347,7 +364,7 @@ describe("The Rest plugin", function () {
 	describe("encountering an internal error", function () {
 		var server    = new Hapi.Server();
 		var mapper    = new MemoryMapper();
-		var instances = new Instance(mapper);
+		var instances = new InstanceAdapter(mapper);
 
 		before(function () {
 			server.connection();

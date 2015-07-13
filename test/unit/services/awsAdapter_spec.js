@@ -4,6 +4,11 @@ var AwsAdapter = require("../../../lib/services/awsAdapter");
 var expect     = require("chai").expect;
 var Bluebird   = require("bluebird");
 var Sinon      = require("sinon");
+var AWS        = require("aws-sdk");
+var ec2        = new AWS.EC2();
+
+Bluebird.promisifyAll(ec2);
+
 require("sinon-as-promised")(Bluebird);
 
 describe("The AwsAdapter class ", function () {
@@ -14,15 +19,15 @@ describe("The AwsAdapter class ", function () {
 	var INVALID_INSTANCE_TYPE = "t2.invalid";
 
 	describe("creating a new instance with valid ami, type", function () {
-		var awsAdapterStub;
+		var runInstancesStub;
 		var result;
-		var awsAdapter = new AwsAdapter({
-			id   : DEFAULT_IMAGE_ID,
-			type : DEFAULT_INSTANCE_TYPE
-		});
 
 		before(function () {
-			awsAdapterStub = Sinon.stub(awsAdapter, "runInstances").onFirstCall()
+			var awsAdapter = new AwsAdapter({
+				id   : DEFAULT_IMAGE_ID,
+				type : DEFAULT_INSTANCE_TYPE
+			});
+			runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").onFirstCall()
 			.returns(Bluebird.resolve("test"));
 
 			awsAdapter.runInstances()
@@ -32,7 +37,7 @@ describe("The AwsAdapter class ", function () {
 		});
 
 		after(function () {
-			//awsAdapterStub.restore();
+			runInstancesStub.runInstanceAsync.restore();
 		});
 
 		it("returns a new instance with the ami and type provided", function () {
@@ -60,7 +65,7 @@ describe("The AwsAdapter class ", function () {
 		});
 
 		after(function () {
-			//awsAdapterStub.restore();
+			//awsAdapterStub.runInstances.restore();
 		});
 
 		it("returns a new instance with the ami and type provided", function () {
