@@ -1,12 +1,11 @@
 "use strict";
 
-var AwsAdapter  = require("../../../lib/services/awsAdapter");
-var expect      = require("chai").expect;
-var Bluebird    = require("bluebird");
-var Sinon       = require("sinon");
-var AWS         = require("aws-sdk");
-var ec2         = new AWS.EC2();
-var options;
+var AwsAdapter = require("../../../lib/services/awsAdapter");
+var expect     = require("chai").expect;
+var Bluebird   = require("bluebird");
+var Sinon      = require("sinon");
+var AWS        = require("aws-sdk");
+var ec2        = new AWS.EC2();
 
 Bluebird.promisifyAll(ec2);
 
@@ -107,16 +106,22 @@ describe("The AwsAdapter class ", function () {
 			.returns(Bluebird.resolve("test"));
 			awsAdapter.runInstances()
 			.then(function (response) {
+				console.log(response);
 				result = response;
 			});
 		});
 
 		after(function () {
 			runInstancesStub.restore();
+			createTagsStub.restore();
 		});
 
 		it("returns a new instance with the ami and type provided", function () {
 			expect(result, "response").to.equal("test");
 		});
 	});
+
+
+	});
+
 });
