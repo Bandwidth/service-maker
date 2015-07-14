@@ -7,38 +7,24 @@ var Rest            = require("../../../lib/plugins/rest");
 var MemoryMapper    = require("genesis").MemoryMapper;
 var expect          = require("chai").expect;
 var InstanceAdapter = require("../../../lib/services/instanceAdapter.js");
+var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var Sinon           = require("sinon");
+
 require("sinon-as-promised");
 
 Bluebird.promisifyAll(Hapi);
 
 describe("The Rest plugin", function () {
-	var VALID_INSTANCE_ID;
-	var VALID_AMI     = "ami-default";
-	var VALID_TYPE    = "t2.micro";
+	var VALID_INSTANCE_ID = "da14fbf2-5404-4f92-b55f-a961578204ed";
+	var VALID_AMI         = "ami-default";
+	var VALID_TYPE        = "t2.micro";
 
-	var INVALID_AMI   = [ "ami-defualt" ];
+	var INVALID_AMI       = [ "ami-defualt" ];
 
-	var DEFAULT_AMI   = "ami-d05e75b8";
-	var DEFAULT_TYPE  = "t2.micro";
-	var INVALID_QUERY = "clumsy-cheetah";
-	var location      = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
-
-	function createAnInstance (server) {
-
-		return new Request("POST","/v1/instances").mime("application/json").payload({
-			ami  : VALID_AMI,
-			type : VALID_TYPE
-		}).inject(server)
-		.then(function (response) {
-			response.payload = JSON.parse(response.payload);
-			expect(response.statusCode, "status").to.equal(201);
-			expect(response.headers.location, "location").to.match(location);
-			expect(response.payload.ami, "ami").to.equal(VALID_AMI);
-			expect(response.payload.type, "type").to.equal(VALID_TYPE);
-			VALID_INSTANCE_ID = response.payload.id;
-		});
-	}
+	var DEFAULT_AMI       = "ami-d05e75b8";
+	var DEFAULT_TYPE      = "t2.micro";
+	var INVALID_QUERY     = "clumsy-cheetah";
+	var location          = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
 	it("is a Hapi plugin", function () {
 		expect(Rest, "attributes").to.have.property("register")
@@ -68,26 +54,41 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("creating a new instance", function () {
-		var server = new Hapi.Server();
+		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
-		var instanceAdapterStub;
+		var createInstanceStub;
+		var runInstancesStub;
+
+		var awsAdapter = new AwsAdapter();
+
 		before(function () {
-			instanceAdapterStub = Sinon.stub(instanceAdapter, "createInstance")
+			createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
 			.returns(Bluebird.resolve({
-				ami   : "uuid",
+				ami   : "ami-d05e75b8",
 				type  : "t2.micro",
 				state : "pending",
 				url   : ""
 			}));
 
+			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+			.returns(Bluebird.resolve({
+				Instances : [ {
+					InstanceId : "test"
+				} ]
+			}));
+
 			server.connection();
 			return server.registerAsync({
-				register : Rest
+				register : Rest,
+				options  : {
+					awsAdapter : awsAdapter
+				}
 			});
 		});
 
 		after(function () {
-			instanceAdapterStub.restore();
+			createInstanceStub.restore();
+			runInstancesStub.restore();
 			return server.stopAsync();
 		});
 
@@ -173,15 +174,17 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("getting an instance", function () {
-		var mapper = new MemoryMapper();
+
 		var server = new Hapi.Server();
+		var instanceAdapter = new InstanceAdapter();
 
 		before(function () {
+
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
 				options  : {
-					mapper : mapper
+					instances : instanceAdapter
 				}
 			});
 		});
@@ -192,12 +195,20 @@ describe("The Rest plugin", function () {
 
 		describe("with an invalid instance id", function () {
 			var result;
-
+			var getInstanceStub;
 			before(function () {
+
+				getInstanceStub = Sinon.stub(instanceAdapter, "getInstance")
+				.returns(Bluebird.resolve(null));
+
 				return new Request("GET", "/v1/instances/" + INVALID_QUERY).inject(server)
 				.then(function (response) {
 					result = response;
 				});
+			});
+
+			after(function () {
+				getInstanceStub.restore();
 			});
 
 			it("shows the instance does not exist", function () {
@@ -206,8 +217,21 @@ describe("The Rest plugin", function () {
 		});
 
 		describe("with a valid instance", function () {
+			var getInstanceStub;
+
 			before(function () {
-				createAnInstance(server);
+				getInstanceStub = Sinon.stub(instanceAdapter, "getInstance")
+				.returns(Bluebird.resolve({
+					id    : VALID_INSTANCE_ID,
+					ami   : "ami-d05e75b8",
+					type  : "t2.micro",
+					state : "pending",
+					url   : ""
+				}));
+			});
+
+			after(function () {
+				getInstanceStub.restore();
 			});
 
 			it("gets the instance of the requsted id", function () {
@@ -221,15 +245,15 @@ describe("The Rest plugin", function () {
 
 	describe("querying for instances", function () {
 
-		var mapper   = new MemoryMapper();
-		var server   = new Hapi.Server();
+		var server          = new Hapi.Server();
+		var instanceAdapter = new InstanceAdapter();
 
 		before(function () {
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
 				options  : {
-					mapper : mapper
+					instances : instanceAdapter
 				}
 			});
 		});
@@ -239,9 +263,22 @@ describe("The Rest plugin", function () {
 		});
 
 		describe("with a valid type", function () {
+			var getAllInstancesStub;
 
 			before(function () {
-				createAnInstance(server);
+				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
+				.returns(Bluebird.resolve([ {
+						id    : VALID_INSTANCE_ID,
+						ami   : "ami-d05e75b8",
+						type  : "t2.micro",
+						state : "pending",
+						url   : ""
+					} ]
+				));
+			});
+
+			after(function () {
+				getAllInstancesStub.restore();
 			});
 
 			it("returns an array of instances with the given type", function () {
@@ -257,13 +294,21 @@ describe("The Rest plugin", function () {
 
 		describe("with an invalid instance by sending non-exisitng Instance Id and type", function () {
 			var result;
+			var getAllInstancesStub;
 
 			before(function () {
+				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
+				.returns(Bluebird.resolve([ ]));
+
 				return new Request("GET", "/v1/instances?type=" + INVALID_QUERY + "&id=" + INVALID_QUERY)
 				.inject(server)
 				.then(function (response) {
 					result = response;
 				});
+			});
+
+			after(function () {
+				getAllInstancesStub.restore();
 			});
 
 			it("returns an empty array of instances", function () {
@@ -276,13 +321,28 @@ describe("The Rest plugin", function () {
 
 		describe("with a valid ID", function () {
 			var result;
+			var getAllInstancesStub;
 
 			before(function () {
+				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
+				.returns(Bluebird.resolve([ {
+						id    : VALID_INSTANCE_ID,
+						ami   : "ami-d05e75b8",
+						type  : "t2.micro",
+						state : "pending",
+						url   : ""
+					} ]
+				));
+
 				return new Request("GET", "/v1/instances?id=" + VALID_INSTANCE_ID)
 				.inject(server)
 				.then(function (response) {
 					result = response;
 				});
+			});
+
+			after(function () {
+				getAllInstancesStub.restore();
 			});
 
 			it("returns an instance with requested id", function () {
@@ -296,13 +356,28 @@ describe("The Rest plugin", function () {
 
 		describe("with a valid AMI", function () {
 			var result;
+			var getAllInstancesStub;
 
 			before(function () {
+				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
+				.returns(Bluebird.resolve([ {
+						id    : VALID_INSTANCE_ID,
+						ami   : "ami-d05e75b8",
+						type  : "t2.micro",
+						state : "pending",
+						url   : ""
+					} ]
+				));
+
 				return new Request("GET", "/v1/instances?ami=" + VALID_AMI)
 				.inject(server)
 				.then(function (response) {
 					result = response;
 				});
+			});
+
+			after(function () {
+				getAllInstancesStub.restore();
 			});
 
 			it("returns an array of instances with requested ami", function () {
@@ -312,13 +387,28 @@ describe("The Rest plugin", function () {
 
 		describe("with state=pending", function () {
 			var result;
+			var getAllInstancesStub;
 
 			before(function () {
+				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
+				.returns(Bluebird.resolve([ {
+						id    : VALID_INSTANCE_ID,
+						ami   : "ami-d05e75b8",
+						type  : "t2.micro",
+						state : "pending",
+						url   : ""
+					} ]
+				));
+
 				return new Request("GET", "/v1/instances?state=pending")
 				.inject(server)
 				.then(function (response) {
 					result = response;
 				});
+			});
+
+			after(function () {
+				getAllInstancesStub.restore();
 			});
 
 			it("returns an array of instances which are in a pending state", function () {
@@ -328,13 +418,21 @@ describe("The Rest plugin", function () {
 
 		describe("with invalid URI", function () {
 			var result;
+			var getAllInstancesStub;
 
 			before(function () {
+				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
+				.returns(Bluebird.resolve([ ]));
+
 				return new Request("GET", "/v1/instances?uri=" + INVALID_QUERY)
 				.inject(server)
 				.then(function (response) {
 					result = response;
 				});
+			});
+
+			after(function () {
+				getAllInstancesStub.restore();
 			});
 
 			it("returns an empty array of intsances", function () {
@@ -361,17 +459,16 @@ describe("The Rest plugin", function () {
 			});
 		});
 	});
+
 	describe("encountering an internal error", function () {
 		var server    = new Hapi.Server();
-		var mapper    = new MemoryMapper();
-		var instances = new InstanceAdapter(mapper);
+		var instances = new InstanceAdapter();
 
 		before(function () {
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
 				options  : {
-					mapper    : mapper,
 					instances : instances
 				}
 			});
@@ -406,7 +503,7 @@ describe("The Rest plugin", function () {
 			var result;
 
 			before(function () {
-				Sinon.stub(mapper, "find", function () {
+				Sinon.stub(instances, "getAllInstances", function () {
 					return Bluebird.reject(new Error("Simulated Failure."));
 				});
 				return new Request("GET", "/v1/instances?id=" + VALID_INSTANCE_ID).inject(server)
@@ -416,7 +513,7 @@ describe("The Rest plugin", function () {
 			});
 
 			after(function () {
-				mapper.find.restore();
+				instances.getAllInstances.restore();
 			});
 
 			it("fails", function () {
