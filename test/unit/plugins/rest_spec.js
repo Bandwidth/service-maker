@@ -273,7 +273,9 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-	});
+		describe("when there is a problem with the database connection", function () {
+			var mapper = new MemoryMapper();
+			var server = new Hapi.Server();
 
 	describe("when there is a problem with the database connection", function () {
 			var mapper = new MemoryMapper();
@@ -289,7 +291,6 @@ describe("The Rest plugin", function () {
 					}
 				});
 			});
-		});
 
 			after(function () {
 				mapper.create.restore();
@@ -308,12 +309,8 @@ describe("The Rest plugin", function () {
 				});
 
 			});
-			return request.inject(server)
-			.catch(function (response) {
-				expect(response.statusCode).to.equal(500);
-			});
-
 		});
+
 	});
 
 	describe("getting an instance", function () {
@@ -369,7 +366,7 @@ describe("The Rest plugin", function () {
 					ami   : "ami-d05e75b8",
 					type  : "t2.micro",
 					state : "pending",
-					url   : ""
+					uri   : ""
 				}));
 			});
 
@@ -415,7 +412,7 @@ describe("The Rest plugin", function () {
 						ami   : "ami-d05e75b8",
 						type  : "t2.micro",
 						state : "pending",
-						url   : ""
+						uri   : ""
 					} ]
 				));
 			});
@@ -473,7 +470,7 @@ describe("The Rest plugin", function () {
 						ami   : "ami-d05e75b8",
 						type  : "t2.micro",
 						state : "pending",
-						url   : ""
+						uri   : ""
 					} ]
 				));
 
@@ -508,7 +505,7 @@ describe("The Rest plugin", function () {
 						ami   : "ami-d05e75b8",
 						type  : "t2.micro",
 						state : "pending",
-						url   : ""
+						uri   : ""
 					} ]
 				));
 
@@ -539,7 +536,7 @@ describe("The Rest plugin", function () {
 						ami   : "ami-d05e75b8",
 						type  : "t2.micro",
 						state : "pending",
-						url   : ""
+						uri   : ""
 					} ]
 				));
 
