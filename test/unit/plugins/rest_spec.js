@@ -111,8 +111,6 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
-
-					//check if DB has been updated to running & uri has been updated
 				});
 			});
 		});
@@ -125,7 +123,6 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
-					//check if DB has been updated to running & uri has been updated
 				});
 			});
 		});

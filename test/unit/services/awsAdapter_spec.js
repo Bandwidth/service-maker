@@ -60,7 +60,8 @@ describe("The AwsAdapter class ", function () {
 		});
 
 		it("returns a new instance with the ami and type provided", function () {
-			expect(result, "response").to.equal("test");
+			expect(result.ami, "response").to.equal("ami-d05e75b8");
+			expect(result.type, "response").to.equal("t2.micro");
 		});
 
 	});
@@ -106,9 +107,12 @@ describe("The AwsAdapter class ", function () {
 			.returns(Bluebird.resolve("test"));
 			awsAdapter.runInstances()
 			.then(function (response) {
-				console.log(response);
 				result = response;
+			})
+			.catch(function (error) {
+				result = error;
 			});
+
 		});
 
 		after(function () {
