@@ -67,7 +67,7 @@ describe("The Rest plugin", function () {
 				ami   : "ami-d05e75b8",
 				type  : "t2.micro",
 				state : "pending",
-				url   : ""
+				uri   : ""
 			}));
 
 			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
@@ -96,7 +96,7 @@ describe("The Rest plugin", function () {
 		});
 
 		describe("with valid parameters passed", function () {
-			it("creates the instance and returns the canonical url", function () {
+			it("creates the instance and returns the canonical uri", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
 					type : VALID_TYPE
@@ -111,7 +111,7 @@ describe("The Rest plugin", function () {
 		});
 
 		describe("with no parameters passed", function () {
-			it("creates the instance and returns the canonical url", function () {
+			it("creates the instance and returns the canonical uri", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json");
 				return request.inject(server)
 				.then(function (response) {
@@ -153,7 +153,7 @@ describe("The Rest plugin", function () {
 				ami   : "ami-d05e75b8",
 				type  : "t2.micro",
 				state : "pending",
-				url   : ""
+				uri   : ""
 			}));
 			server.connection();
 
@@ -170,7 +170,7 @@ describe("The Rest plugin", function () {
 			return server.stopAsync();
 		});
 
-		describe("with an ami that doesn't exist", function () {
+		describe("when the credentials aren't properly configured", function () {
 			before(function () {
 				var AuthError  = new Error();
 				AuthError.name = "AuthFailure";
@@ -189,7 +189,7 @@ describe("The Rest plugin", function () {
 				});
 				return request.inject(server)
 				.then(function (response) {
-					expect(response.statusCode, "status").to.equal(400);
+					expect(response.statusCode, "status").to.equal(500);
 					expect(response.payload)
 					.to.equal("Authentication Failure. Ensure your AWS credentials have been correctly used.");
 				});
@@ -252,39 +252,39 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-	});
+		describe("when there is a problem with the database connection", function () {
+			var mapper = new MemoryMapper();
+			var server = new Hapi.Server();
 
-	describe("when there is a problem with the database connection", function () {
-		var mapper = new MemoryMapper();
-		var server = new Hapi.Server();
+			before(function () {
+				Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
+				server.connection();
+				return server.registerAsync({
+					register : Rest,
+					options  : {
+						mapper : mapper
+					}
+				});
+			});
 
-		before(function () {
-			Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
-			server.connection();
-			return server.registerAsync({
-				register : Rest,
-				options  : {
-					mapper : mapper
-				}
+			after(function () {
+				mapper.create.restore();
+				return server.stopAsync();
+			});
+
+			it("displays an error page", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.catch(function (response) {
+					expect(response.statusCode).to.equal(500);
+				});
+
 			});
 		});
 
-		after(function () {
-			mapper.create.restore();
-			return server.stopAsync();
-		});
-
-		it("displays an error page", function () {
-			var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-				ami  : VALID_AMI,
-				type : VALID_TYPE
-			});
-			return request.inject(server)
-			.catch(function (response) {
-				expect(response.statusCode).to.equal(500);
-			});
-
-		});
 	});
 
 	describe("getting an instance", function () {
@@ -340,7 +340,7 @@ describe("The Rest plugin", function () {
 					ami   : "ami-d05e75b8",
 					type  : "t2.micro",
 					state : "pending",
-					url   : ""
+					uri   : ""
 				}));
 			});
 
@@ -386,7 +386,7 @@ describe("The Rest plugin", function () {
 						ami   : "ami-d05e75b8",
 						type  : "t2.micro",
 						state : "pending",
-						url   : ""
+						uri   : ""
 					} ]
 				));
 			});
@@ -444,7 +444,7 @@ describe("The Rest plugin", function () {
 						ami   : "ami-d05e75b8",
 						type  : "t2.micro",
 						state : "pending",
-						url   : ""
+						uri   : ""
 					} ]
 				));
 
@@ -479,7 +479,7 @@ describe("The Rest plugin", function () {
 						ami   : "ami-d05e75b8",
 						type  : "t2.micro",
 						state : "pending",
-						url   : ""
+						uri   : ""
 					} ]
 				));
 
@@ -510,7 +510,7 @@ describe("The Rest plugin", function () {
 						ami   : "ami-d05e75b8",
 						type  : "t2.micro",
 						state : "pending",
-						url   : ""
+						uri   : ""
 					} ]
 				));
 
