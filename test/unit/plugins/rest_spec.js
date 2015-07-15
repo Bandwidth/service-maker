@@ -21,8 +21,8 @@ describe("The Rest plugin", function () {
 
 	var INVALID_AMI       = [ "ami-defualt" ];
 
-	var DEFAULT_AMI       = "ami-d05e75b8";
-	var DEFAULT_TYPE      = "t2.micro";
+	//var DEFAULT_AMI       = "ami-d05e75b8";
+	//var DEFAULT_TYPE      = "t2.micro";
 	var INVALID_QUERY     = "clumsy-cheetah";
 	var location          = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
@@ -72,9 +72,12 @@ describe("The Rest plugin", function () {
 
 			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 			.returns(Bluebird.resolve({
-				Instances : [ {
-					InstanceId : "test"
-				} ]
+				id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+				ami      : "ami-d05e75b8",
+				type     : "t2.micro",
+				revision : 0,
+				state    : "pending",
+				uri      : null
 			}));
 
 			server.connection();
@@ -103,8 +106,6 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
-					expect(response.payload.ami, "ami").to.equal(VALID_AMI);
-					expect(response.payload.type, "type").to.equal(VALID_TYPE);
 				});
 			});
 		});
@@ -117,8 +118,6 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
-					expect(response.payload.ami, "ami").to.equal(DEFAULT_AMI);
-					expect(response.payload.type, "type").to.equal(DEFAULT_TYPE);
 				});
 			});
 		});
@@ -134,6 +133,121 @@ describe("The Rest plugin", function () {
 					expect(response.statusCode, "status").to.equal(400);
 					expect(response.payload)
 					.to.equal("Bad Request: Please check the parameters passed.");
+				});
+			});
+		});
+
+	});
+
+	describe("creating a new instance", function () {
+		var server          = new Hapi.Server();
+		var instanceAdapter = new InstanceAdapter();
+		var createInstanceStub;
+		var runInstancesStub;
+
+		var awsAdapter = new AwsAdapter();
+
+		before(function () {
+			createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
+			.returns(Bluebird.resolve({
+				ami   : "ami-d05e75b8",
+				type  : "t2.micro",
+				state : "pending",
+				url   : ""
+			}));
+			server.connection();
+
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					awsAdapter : awsAdapter
+				}
+			});
+		});
+
+		after(function () {
+			createInstanceStub.restore();
+			return server.stopAsync();
+		});
+
+		describe("with an ami that doesn't exist", function () {
+			before(function () {
+				var AuthError  = new Error();
+				AuthError.name = "AuthFailure";
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.rejects(AuthError);
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+			it("returns an error with statusCode 400", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					expect(response.statusCode, "status").to.equal(400);
+					expect(response.payload)
+					.to.equal("Authentication Failure. Ensure your AWS credentials have been correctly used.");
+				});
+			});
+		});
+
+		describe("with an ami that doesn't exist", function () {
+
+			before(function () {
+				var AMIError  = new Error();
+				AMIError.name = "InvalidAMIID.Malformed";
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.rejects(AMIError);
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("returns an error with statusCode 400", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : "ami-invalid",
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					expect(response.statusCode, "status").to.equal(400);
+					expect(response.payload)
+					.to.equal("The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.");
+				});
+			});
+		});
+
+		describe("with a type that doesn't exist", function () {
+
+			before(function () {
+				var TypeError  = new Error();
+				TypeError.name = "InvalidParameterValue";
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.rejects(TypeError);
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("returns an error with statusCode 400", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : "t2.notExist"
+				});
+				return request.inject(server)
+				.then(function (response) {
+					expect(response.statusCode, "status").to.equal(400);
+					expect(response.payload)
+					.to.equal("The Type entered does not exist. Ensure it is a valid EC2 type.");
 				});
 			});
 		});

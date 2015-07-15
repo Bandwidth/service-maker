@@ -47,7 +47,6 @@ describe("The AwsAdapter class ", function () {
 
 			awsAdapter.runInstances(VALID_INSTANCE)
 			.then(function (response) {
-				console.log(response);
 				result = response;
 			});
 		});
@@ -58,7 +57,8 @@ describe("The AwsAdapter class ", function () {
 		});
 
 		it("returns a new instance with the ami and type provided", function () {
-			expect(result, "response").to.equal("test");
+			expect(result.ami, "response").to.equal("ami-d05e75b8");
+			expect(result.type, "response").to.equal("t2.micro");
 		});
 	});
 
@@ -73,14 +73,20 @@ describe("The AwsAdapter class ", function () {
 			});
 
 			runInstancesStub = Sinon.stub(ec2, "runInstancesAsync", function () {
-				return Bluebird.reject(new Error("AMIError"));
+				var error = new Error();
+				error.name = "InvalidAMIID.Malformed";
+				error.message = "The specified AMI ID is not valid. It should be of the form ami-xxxxxx.";
+				return Bluebird.reject(error);
 			});
 
 			awsAdapter.runInstances(INVALID_INSTANCE)
 			.then(function (response) {
-				console.log(response);
 				result = response;
+			})
+			.catch(function (error) {
+				result = error;
 			});
+
 		});
 
 		after(function () {
@@ -88,9 +94,81 @@ describe("The AwsAdapter class ", function () {
 			createTagsStub.restore();
 		});
 
-		it("returns a new instance with the ami and type provided", function () {
-			expect(result, "response").to.be.instanceof(Error);
+		it("throws an InvalidAMIID.Malformed error", function () {
+			expect(result, "error").to.be.instanceof(Error);
+			expect(result.message).to.equal("The specified AMI ID is not valid. It should be of the form ami-xxxxxx.");
 		});
 	});
 
+	describe("creating a new instance with invalid ami, type", function () {
+		var runInstancesStub;
+		var createTagsStub;
+		var result;
+		before(function () {
+			var awsAdapter = new AwsAdapter(ec2);
+			createTagsStub = Sinon.stub(ec2, "createTagsAsync", function () {
+				return "test";
+			});
+
+			runInstancesStub = Sinon.stub(ec2, "runInstancesAsync", function () {
+				var error = new Error();
+				error.name = "InvalidAMIID.Malformed";
+				error.message = "The specified AMI ID is not valid. It should be of the form ami-xxxxxx.";
+				return Bluebird.reject(error);
+			});
+
+			awsAdapter.runInstances(INVALID_INSTANCE)
+			.then(function (response) {
+				result = response;
+			})
+			.catch(function (error) {
+				result = error;
+			});
+
+		});
+
+		after(function () {
+			runInstancesStub.restore();
+			createTagsStub.restore();
+		});
+
+		it("throws an InvalidAMIID.Malformed error", function () {
+			expect(result, "error").to.be.instanceof(Error);
+			expect(result.message).to.equal("The specified AMI ID is not valid. It should be of the form ami-xxxxxx.");
+		});
+	});
+
+	describe("creating a new instance with invalid ami, type", function () {
+		var runInstancesStub;
+		var createTagsStub;
+		var result;
+		before(function () {
+			var awsAdapter = new AwsAdapter(ec2);
+			createTagsStub = Sinon.stub(ec2, "createTagsAsync", function () {
+				return "test";
+			});
+
+			runInstancesStub = Sinon.stub(ec2, "runInstancesAsync", function () {
+				return Bluebird.reject(new Error("Simulated EC2 Error"));
+			});
+
+			awsAdapter.runInstances(INVALID_INSTANCE)
+			.then(function (response) {
+				result = response;
+			})
+			.catch(function (error) {
+				result = error;
+			});
+
+		});
+
+		after(function () {
+			runInstancesStub.restore();
+			createTagsStub.restore();
+		});
+
+		it("throws an InvalidAMIID.Malformed error", function () {
+			expect(result, "error").to.be.instanceof(Error);
+		});
+	});
 });
