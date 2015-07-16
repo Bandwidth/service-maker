@@ -58,6 +58,7 @@ describe("The Rest plugin", function () {
 		var instanceAdapter = new InstanceAdapter();
 		var createInstanceStub;
 		var runInstancesStub;
+		var updateInstanceStub;
 
 		var awsAdapter = new AwsAdapter();
 
@@ -67,6 +68,14 @@ describe("The Rest plugin", function () {
 				ami   : "ami-d05e75b8",
 				type  : "t2.micro",
 				state : "pending",
+				uri   : ""
+			}));
+
+			updateInstanceStub = Sinon.stub(instanceAdapter, "updateInstance")
+			.returns(Bluebird.resolve({
+				ami   : "ami-d05e75b8",
+				type  : "t2.micro",
+				state : "failed",
 				uri   : ""
 			}));
 
@@ -90,6 +99,7 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
+			updateInstanceStub.restore();
 			createInstanceStub.restore();
 			runInstancesStub.restore();
 			return server.stopAsync();
