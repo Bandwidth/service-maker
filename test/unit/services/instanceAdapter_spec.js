@@ -22,11 +22,29 @@ describe("The InstanceAdapter class ", function () {
 
 			instances.createInstance()
 			.then(function (result) {
+				var failedInstance = new Instance({
+					id    : result.id,
+					ami   : result.ami,
+					state : "failed",
+					type  : result.type,
+					uri   : result.uri
+				});
+
 				expect(result).to.be.an.instanceOf(Instance);
 				expect(result.id).to.match(ID_REGEX);
 				expect(result.type).to.equal(DEFAULT_TYPE);
 				expect(result.ami).to.equal(DEFAULT_AMI);
+
+				return instances.updateInstance(failedInstance)
+				.then(function (result) {
+					expect(result).to.be.an.instanceOf(Instance);
+					expect(result.id).to.match(ID_REGEX);
+					expect(result.type).to.equal(DEFAULT_TYPE);
+					expect(result.ami).to.equal(DEFAULT_AMI);
+					expect(result.state).to.equal("failed");
+				});
 			});
+
 		});
 
 	});

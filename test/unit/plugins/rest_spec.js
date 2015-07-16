@@ -154,6 +154,7 @@ describe("The Rest plugin", function () {
 		var instanceAdapter = new InstanceAdapter();
 		var createInstanceStub;
 		var runInstancesStub;
+		var updateInstanceStub;
 
 		var awsAdapter = new AwsAdapter();
 
@@ -165,6 +166,15 @@ describe("The Rest plugin", function () {
 				state : "pending",
 				uri   : ""
 			}));
+
+			updateInstanceStub = Sinon.stub(instanceAdapter, "updateInstance")
+			.returns(Bluebird.resolve({
+				ami   : "ami-d05e75b8",
+				type  : "t2.micro",
+				state : "failed",
+				uri   : ""
+			}));
+
 			server.connection();
 
 			return server.registerAsync({
@@ -176,6 +186,7 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
+			updateInstanceStub.restore();
 			createInstanceStub.restore();
 			return server.stopAsync();
 		});
@@ -192,6 +203,7 @@ describe("The Rest plugin", function () {
 			after(function () {
 				runInstancesStub.restore();
 			});
+
 			it("returns an error with statusCode 400", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
