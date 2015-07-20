@@ -23,7 +23,7 @@ describe("The InstanceAdapter class ", function () {
 		it("returns a new instance with default values", function () {
 			var instances    = new InstanceAdapter();
 
-			instances.createInstance()
+			return instances.createInstance()
 			.then(function (result) {
 				expect(result).to.be.an.instanceOf(Instance);
 				expect(result.id).to.match(ID_REGEX);
@@ -38,7 +38,7 @@ describe("The InstanceAdapter class ", function () {
 		it("returns a new instance with default values with status set to failed", function () {
 			var instances      = new InstanceAdapter();
 
-			instances.createInstance()
+			return instances.createInstance()
 			.then(function (result) {
 
 				expect(result).to.be.an.instanceOf(Instance);
@@ -72,7 +72,7 @@ describe("The InstanceAdapter class ", function () {
 		it("returns a new instance with default values", function () {
 			var instances    = new InstanceAdapter();
 
-			instances.createInstance(DEFAULT_AMI, DEFAULT_TYPE)
+			return instances.createInstance(DEFAULT_AMI, DEFAULT_TYPE)
 			.then(function (result) {
 				expect(result).to.be.an.instanceOf(Instance);
 				expect(result.id).to.match(ID_REGEX);
@@ -88,7 +88,7 @@ describe("The InstanceAdapter class ", function () {
 			var instances    = new InstanceAdapter();
 
 			before(function () {
-				instances.createInstance()
+				return instances.createInstance()
 				.then(function (response) {
 					VALID_INSTANCE_ID = response.id;
 				});
@@ -96,7 +96,7 @@ describe("The InstanceAdapter class ", function () {
 
 			it("gets a valid instance", function () {
 
-				instances.getInstance({ id : VALID_INSTANCE_ID })
+				return instances.getInstance({ id : VALID_INSTANCE_ID })
 				.then(function (result) {
 					expect(result).to.be.an.instanceOf(Instance);
 					expect(result.id).to.match(ID_REGEX);
@@ -111,7 +111,7 @@ describe("The InstanceAdapter class ", function () {
 
 			it("fails", function () {
 
-				instances.getInstance({ id : "foo-bar-baz" })
+				return instances.getInstance({ id : "foo-bar-baz" })
 				.then(function (result) {
 					expect(result).to.be.null;
 				});
@@ -124,13 +124,15 @@ describe("The InstanceAdapter class ", function () {
 
 		before(function () {
 
-			instances.createInstance();
-			instances.createInstance(DEFAULT_AMI, "t2.medium");
+			return instances.createInstance()
+			.then(function () {
+				return instances.createInstance(DEFAULT_AMI, "t2.medium");
+			});
 		});
 
 		describe("with valid parameters", function () {
 			it("receives an array of instances", function () {
-				instances.getAllInstances({ ami : DEFAULT_AMI, type : DEFAULT_TYPE })
+				return instances.getAllInstances({ ami : DEFAULT_AMI, type : DEFAULT_TYPE })
 				.then(function (response) {
 					expect(response).to.be.an.instanceOf(Array);
 					expect(response[ 0 ].id).to.match(ID_REGEX);
@@ -143,7 +145,7 @@ describe("The InstanceAdapter class ", function () {
 
 		describe("with no parameters", function () {
 			it("receives an array of all instances", function () {
-				instances.getAllInstances()
+				return instances.getAllInstances()
 				.then(function (response) {
 					expect(response).to.be.an.instanceOf(Array);
 					expect(response[ 0 ].id).to.match(ID_REGEX);
@@ -159,7 +161,7 @@ describe("The InstanceAdapter class ", function () {
 
 		describe("with a query that doesn't match any instance", function () {
 			it("returns an empty array", function () {
-				instances.getAllInstances({ ami : "foo-bar-baz" })
+				return instances.getAllInstances({ ami : "foo-bar-baz" })
 				.then(function (response) {
 					expect(response).to.be.an.instanceOf(Array);
 					expect(response.length).to.be.equal(0);
