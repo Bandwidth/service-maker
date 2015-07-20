@@ -35,7 +35,7 @@ describe("The InstanceAdapter class ", function () {
 	});
 
 	describe("creating a new instance when AWS fails", function () {
-		it("returns a new instance with default values with status set to failed", function () {
+		it("updates the record in the database with status set to failed", function () {
 			var instances      = new InstanceAdapter();
 
 			return instances.createInstance()
