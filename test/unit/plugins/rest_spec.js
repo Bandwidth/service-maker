@@ -16,14 +16,13 @@ Bluebird.promisifyAll(Hapi);
 
 describe("The Rest plugin", function () {
 	var VALID_INSTANCE_ID = "da14fbf2-5404-4f92-b55f-a961578204ed";
-	var VALID_AMI         = "ami-default";
+	var VALID_AMI         = "ami-d05e75b8";
 	var VALID_TYPE        = "t2.micro";
+	var ID_REGEX          = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
 	var INVALID_AMI       = [ "ami-defualt" ];
-
-	//var DEFAULT_AMI       = "ami-d05e75b8";
-	//var DEFAULT_TYPE      = "t2.micro";
 	var INVALID_QUERY     = "clumsy-cheetah";
+
 	var location          = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
 	it("is a Hapi plugin", function () {
@@ -58,7 +57,6 @@ describe("The Rest plugin", function () {
 		var instanceAdapter = new InstanceAdapter();
 		var createInstanceStub;
 		var runInstancesStub;
-		var updateInstanceStub;
 
 		var awsAdapter = new AwsAdapter();
 
@@ -68,14 +66,6 @@ describe("The Rest plugin", function () {
 				ami   : "ami-d05e75b8",
 				type  : "t2.micro",
 				state : "pending",
-				uri   : ""
-			}));
-
-			updateInstanceStub = Sinon.stub(instanceAdapter, "updateInstance")
-			.returns(Bluebird.resolve({
-				ami   : "ami-d05e75b8",
-				type  : "t2.micro",
-				state : "failed",
 				uri   : ""
 			}));
 
@@ -99,7 +89,6 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
-			updateInstanceStub.restore();
 			createInstanceStub.restore();
 			runInstancesStub.restore();
 			return server.stopAsync();
@@ -140,8 +129,9 @@ describe("The Rest plugin", function () {
 				});
 				return request.inject(server)
 				.then(function (response) {
-					expect(response.statusCode, "status").to.equal(400);
-					expect(response.payload)
+					var error = JSON.parse(response.payload);
+					expect(error.statusCode, "status").to.equal(400);
+					expect(error.message)
 					.to.equal("Bad Request: Please check the parameters passed.");
 				});
 			});
@@ -149,7 +139,7 @@ describe("The Rest plugin", function () {
 
 	});
 
-	describe("creating a new instance", function () {
+	describe("fails in creating a new instance", function () {
 		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
 		var createInstanceStub;
@@ -204,16 +194,17 @@ describe("The Rest plugin", function () {
 				runInstancesStub.restore();
 			});
 
-			it("returns an error with statusCode 400", function () {
+			it("returns an error with statusCode 500", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
 					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
-					expect(response.statusCode, "status").to.equal(500);
-					expect(response.payload)
-					.to.equal("Authentication Failure. Ensure your AWS credentials have been correctly used.");
+					var error = JSON.parse(response.payload);
+					expect(error.statusCode, "status").to.equal(500);
+					expect(error.message)
+					.to.equal("An internal server error occurred");
 				});
 			});
 		});
@@ -239,8 +230,9 @@ describe("The Rest plugin", function () {
 				});
 				return request.inject(server)
 				.then(function (response) {
-					expect(response.statusCode, "status").to.equal(400);
-					expect(response.payload)
+					var error = JSON.parse(response.payload);
+					expect(error.statusCode, "status").to.equal(400);
+					expect(error.message)
 					.to.equal("The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.");
 				});
 			});
@@ -267,14 +259,17 @@ describe("The Rest plugin", function () {
 				});
 				return request.inject(server)
 				.then(function (response) {
-					expect(response.statusCode, "status").to.equal(400);
-					expect(response.payload)
+					var error = JSON.parse(response.payload);
+					expect(error.statusCode, "status").to.equal(400);
+					expect(error.message)
 					.to.equal("The Type entered does not exist. Ensure it is a valid EC2 type.");
 				});
 			});
 		});
 
-		describe("when there is a problem with the database connection", function () {
+	});
+
+	describe("when there is a problem with the database connection", function () {
 			var mapper = new MemoryMapper();
 			var server = new Hapi.Server();
 
@@ -294,20 +289,19 @@ describe("The Rest plugin", function () {
 				return server.stopAsync();
 			});
 
-			it("displays an error page", function () {
+			it("returns an internal server error with status code 500", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
 					type : VALID_TYPE
 				});
 				return request.inject(server)
-				.catch(function (response) {
+				.then(function (response) {
+					expect(response.result.message).to.equal("An internal server error occurred");
 					expect(response.statusCode).to.equal(500);
 				});
 
 			});
 		});
-
-	});
 
 	describe("getting an instance", function () {
 
@@ -349,6 +343,7 @@ describe("The Rest plugin", function () {
 
 			it("shows the instance does not exist", function () {
 				expect(result.statusCode,"status").to.equal(404);
+				expect(getInstanceStub.args[ 0 ][ 0 ].id).to.equal(INVALID_QUERY);
 			});
 		});
 
@@ -373,7 +368,13 @@ describe("The Rest plugin", function () {
 			it("gets the instance of the requsted id", function () {
 				return new Request("GET", "/v1/instances/" + VALID_INSTANCE_ID).inject(server)
 				.then(function (response) {
+					var res = JSON.parse(response.payload);
 					expect(response.statusCode,"status").to.equal(200);
+					expect(res.id).to.match(ID_REGEX);
+					expect(res.ami).to.equal(VALID_AMI);
+					expect(res.type).to.equal(VALID_TYPE);
+					expect(res.state).to.equal("pending");
+					expect(getInstanceStub.args[ 0 ][ 0 ].id).to.equal(VALID_INSTANCE_ID);
 				});
 			});
 		});
@@ -418,12 +419,16 @@ describe("The Rest plugin", function () {
 			});
 
 			it("returns an array of instances with the given type", function () {
-				var payload;
 				return new Request("GET", "/v1/instances?type=" + VALID_TYPE).inject(server)
 				.then(function (response) {
+					var res = JSON.parse(response.payload);
 					expect(response.statusCode,"status").to.equal(200);
-					payload = JSON.parse(response.payload);
-					expect(payload.instances).to.have.length.of.at.least(1);
+					expect(res.instances[ 0 ].id).to.match(ID_REGEX);
+					expect(res.instances[ 0 ].ami).to.equal(VALID_AMI);
+					expect(res.instances[ 0 ].type).to.equal(VALID_TYPE);
+					expect(res.instances[ 0 ].state).to.equal("pending");
+					expect(res.instances).to.have.length.of.at.least(1);
+					expect(getAllInstancesStub.args[ 0 ][ 0 ].type).to.equal(VALID_TYPE);
 				});
 			});
 		});
@@ -452,6 +457,10 @@ describe("The Rest plugin", function () {
 				expect(result.statusCode,"status").to.equal(200);
 				payload = JSON.parse(result.payload);
 				expect(payload.instances.length).equal(0);
+				expect(getAllInstancesStub.args[ 0 ][ 0 ].type).to.equal(INVALID_QUERY);
+				expect(getAllInstancesStub.args[ 0 ][ 0 ].id).to.equal(INVALID_QUERY);
+				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(2);
+
 			});
 		});
 
@@ -483,10 +492,13 @@ describe("The Rest plugin", function () {
 
 			it("returns an instance with requested id", function () {
 				var payload;
+
 				expect(result.statusCode,"status").to.equal(200);
 				payload = JSON.parse(result.payload);
 				expect(payload.instances.length).equal(1);
 				expect(payload.instances[ 0 ].id).to.equal(VALID_INSTANCE_ID);
+				expect(getAllInstancesStub.args[ 0 ][ 0 ].id).to.equal(VALID_INSTANCE_ID);
+				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(1);
 			});
 		});
 
@@ -517,6 +529,8 @@ describe("The Rest plugin", function () {
 			});
 
 			it("returns an array of instances with requested ami", function () {
+				expect(getAllInstancesStub.args[ 0 ][ 0 ].ami).to.equal(VALID_AMI);
+				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(1);
 				expect(result.statusCode,"status").to.equal(200);
 			});
 		});
@@ -548,6 +562,8 @@ describe("The Rest plugin", function () {
 			});
 
 			it("returns an array of instances which are in a pending state", function () {
+				expect(getAllInstancesStub.args[ 0 ][ 0 ].state).to.equal("pending");
+				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(1);
 				expect(result.statusCode,"status").to.equal(200);
 			});
 		});
@@ -573,6 +589,8 @@ describe("The Rest plugin", function () {
 
 			it("returns an empty array of intsances", function () {
 				var payload;
+				expect(getAllInstancesStub.args[ 0 ][ 0 ].uri).to.equal(INVALID_QUERY);
+				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(1);
 				expect(result.statusCode,"status").to.equal(200);
 				payload = JSON.parse(result.payload);
 				expect(payload.instances.length).equal(0);
@@ -583,6 +601,7 @@ describe("The Rest plugin", function () {
 			var result;
 
 			before(function () {
+
 				return new Request("GET", "/v1/instances?ami=" + INVALID_QUERY + "&ami=" + INVALID_QUERY)
 				.inject(server)
 				.then(function (response) {

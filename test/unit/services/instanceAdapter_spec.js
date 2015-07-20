@@ -9,19 +9,43 @@ var Sinon           = require("sinon");
 require("sinon-as-promised")(Bluebird);
 
 describe("The InstanceAdapter class ", function () {
+
+	var DEFAULT_TYPE = "t2.micro";
+	var DEFAULT_AMI  = "ami-d05e75b8";
+	var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+	var VALID_INSTANCE_ID;
+
 	it("is immutable", function () {
 		expect(Object.isFrozen(InstanceAdapter), "frozen").to.be.true;
 	});
 
 	describe("creating a new instance", function () {
 		it("returns a new instance with default values", function () {
-			var DEFAULT_TYPE = "t2.micro";
-			var DEFAULT_AMI  = "ami-d05e75b8";
-			var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 			var instances    = new InstanceAdapter();
 
 			instances.createInstance()
 			.then(function (result) {
+				expect(result).to.be.an.instanceOf(Instance);
+				expect(result.id).to.match(ID_REGEX);
+				expect(result.type).to.equal(DEFAULT_TYPE);
+				expect(result.ami).to.equal(DEFAULT_AMI);
+			});
+		});
+
+	});
+
+	describe("creating a new instance when AWS fails", function () {
+		it("returns a new instance with default values with status set to failed", function () {
+			var instances      = new InstanceAdapter();
+
+			instances.createInstance()
+			.then(function (result) {
+
+				expect(result).to.be.an.instanceOf(Instance);
+				expect(result.id).to.match(ID_REGEX);
+				expect(result.type).to.equal(DEFAULT_TYPE);
+				expect(result.ami).to.equal(DEFAULT_AMI);
+
 				var failedInstance = new Instance({
 					id    : result.id,
 					ami   : result.ami,
@@ -30,19 +54,14 @@ describe("The InstanceAdapter class ", function () {
 					uri   : result.uri
 				});
 
+				return instances.updateInstance(failedInstance);
+			})
+			.then(function (result) {
 				expect(result).to.be.an.instanceOf(Instance);
 				expect(result.id).to.match(ID_REGEX);
 				expect(result.type).to.equal(DEFAULT_TYPE);
 				expect(result.ami).to.equal(DEFAULT_AMI);
-
-				return instances.updateInstance(failedInstance)
-				.then(function (result) {
-					expect(result).to.be.an.instanceOf(Instance);
-					expect(result.id).to.match(ID_REGEX);
-					expect(result.type).to.equal(DEFAULT_TYPE);
-					expect(result.ami).to.equal(DEFAULT_AMI);
-					expect(result.state).to.equal("failed");
-				});
+				expect(result.state).to.equal("failed");
 			});
 
 		});
@@ -51,9 +70,6 @@ describe("The InstanceAdapter class ", function () {
 
 	describe("creating a new instance, passing ami and type", function () {
 		it("returns a new instance with default values", function () {
-			var DEFAULT_TYPE = "t2.micro";
-			var DEFAULT_AMI  = "ami-d05e75b8";
-			var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 			var instances    = new InstanceAdapter();
 
 			instances.createInstance(DEFAULT_AMI, DEFAULT_TYPE)
@@ -69,19 +85,11 @@ describe("The InstanceAdapter class ", function () {
 
 	describe("Getting an instance", function () {
 		describe("with a valid instanceId", function () {
-			var VALID_INSTANCE_ID;
-			var DEFAULT_TYPE = "t2.micro";
-			var DEFAULT_AMI  = "ami-d05e75b8";
-			var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 			var instances    = new InstanceAdapter();
 
 			before(function () {
 				instances.createInstance()
 				.then(function (response) {
-					expect(response).to.be.an.instanceOf(Instance);
-					expect(response.id).to.match(ID_REGEX);
-					expect(response.type).to.equal(DEFAULT_TYPE);
-					expect(response.ami).to.equal(DEFAULT_AMI);
 					VALID_INSTANCE_ID = response.id;
 				});
 			});
@@ -98,7 +106,7 @@ describe("The InstanceAdapter class ", function () {
 			});
 		});
 
-		describe("with an invalid instanceId", function () {
+		describe("with a non-existent instanceId", function () {
 			var instances = new InstanceAdapter();
 
 			it("fails", function () {
@@ -112,22 +120,12 @@ describe("The InstanceAdapter class ", function () {
 	});
 
 	describe("Querying for instances", function () {
-		var VALID_INSTANCE_ID;
-		var DEFAULT_TYPE = "t2.micro";
-		var DEFAULT_AMI  = "ami-d05e75b8";
-		var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 		var instances    = new InstanceAdapter();
 
 		before(function () {
 
-			instances.createInstance()
-			.then(function (response) {
-				expect(response).to.be.an.instanceOf(Instance);
-				expect(response.id).to.match(ID_REGEX);
-				expect(response.type).to.equal(DEFAULT_TYPE);
-				expect(response.ami).to.equal(DEFAULT_AMI);
-				VALID_INSTANCE_ID = response.id;
-			});
+			instances.createInstance();
+			instances.createInstance(DEFAULT_AMI, "t2.medium");
 		});
 
 		describe("with valid parameters", function () {
@@ -135,7 +133,10 @@ describe("The InstanceAdapter class ", function () {
 				instances.getAllInstances({ ami : DEFAULT_AMI, type : DEFAULT_TYPE })
 				.then(function (response) {
 					expect(response).to.be.an.instanceOf(Array);
-					expect(response.length).to.be.at.least(1);
+					expect(response[ 0 ].id).to.match(ID_REGEX);
+					expect(response[ 0 ].ami).to.equal(DEFAULT_AMI);
+					expect(response[ 0 ].type).to.equal(DEFAULT_TYPE);
+					expect(response.length).to.equal(1);
 				});
 			});
 		});
@@ -145,12 +146,18 @@ describe("The InstanceAdapter class ", function () {
 				instances.getAllInstances()
 				.then(function (response) {
 					expect(response).to.be.an.instanceOf(Array);
-					expect(response.length).to.be.at.least(1);
+					expect(response[ 0 ].id).to.match(ID_REGEX);
+					expect(response[ 0 ].ami).to.equal(DEFAULT_AMI);
+					expect(response[ 0 ].type).to.equal(DEFAULT_TYPE);
+					expect(response[ 1 ].id).to.match(ID_REGEX);
+					expect(response[ 1 ].ami).to.equal(DEFAULT_AMI);
+					expect(response[ 1 ].type).to.equal("t2.medium");
+					expect(response.length).to.equal(2);
 				});
 			});
 		});
 
-		describe("with invalid parameters", function () {
+		describe("with a query that doesn't match any instance", function () {
 			it("returns an empty array", function () {
 				instances.getAllInstances({ ami : "foo-bar-baz" })
 				.then(function (response) {
@@ -164,8 +171,6 @@ describe("The InstanceAdapter class ", function () {
 		describe("when the mapper fails to create a new model", function () {
 			var result;
 			var mapperStub;
-			var DEFAULT_TYPE = "t2.micro";
-			var DEFAULT_AMI  = "ami-d05e75b8";
 
 			before(function () {
 				var mapper = new Genesis.MemoryMapper();
