@@ -8,6 +8,7 @@ var MemoryMapper    = require("genesis").MemoryMapper;
 var expect          = require("chai").expect;
 var InstanceAdapter = require("../../../lib/services/instanceAdapter.js");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
+var SshAdapter      = require("../../../lib/services/sshAdapter");
 var Sinon           = require("sinon");
 
 require("sinon-as-promised");
@@ -57,8 +58,10 @@ describe("The Rest plugin", function () {
 		var instanceAdapter = new InstanceAdapter();
 		var createInstanceStub;
 		var runInstancesStub;
-
+		var startSshPollingStub;
+		var getPublicIPAddressStub;
 		var awsAdapter = new AwsAdapter();
+		var sshAdapter = new SshAdapter();
 
 		before(function () {
 			createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
@@ -71,19 +74,27 @@ describe("The Rest plugin", function () {
 
 			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 			.returns(Bluebird.resolve({
-				id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
-				ami      : "ami-d05e75b8",
-				type     : "t2.micro",
-				revision : 0,
-				state    : "pending",
-				uri      : null
+				id         : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+				ami        : "ami-d05e75b8",
+				type       : "t2.micro",
+				revision   : 0,
+				state      : "pending",
+				uri        : null,
+				instanceID : VALID_EC2_INSTANCE
 			}));
+
+			startSshPollingStub = Sinon.stub(sshAdapter, "startSshPolling")
+			.returns(Bluebird.resolve(VALID_EC2_INSTANCE));
+
+			getPublicIPAddressStub = Sinon.stub(awsAdapter, "getPublicIPAddress")
+			.returns(Bluebird.resolve(VALID_IP_ADDRESS));
 
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
 				options  : {
-					awsAdapter : awsAdapter
+					awsAdapter : awsAdapter,
+					sshAdapter : sshAdapter
 				}
 			});
 		});
@@ -91,6 +102,8 @@ describe("The Rest plugin", function () {
 		after(function () {
 			createInstanceStub.restore();
 			runInstancesStub.restore();
+			getPublicIPAddressStub.restore();
+			startSshPollingStub.restore();
 			return server.stopAsync();
 		});
 
@@ -105,6 +118,7 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
+					//check if DB has been updated to running & uri has been updated
 				});
 			});
 		});
@@ -117,6 +131,7 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
+					//check if DB has been updated to running & uri has been updated
 				});
 			});
 		});
@@ -302,378 +317,6 @@ describe("The Rest plugin", function () {
 
 			});
 		});
-
-	describe("getting an instance", function () {
-
-		var server = new Hapi.Server();
-		var instanceAdapter = new InstanceAdapter();
-
-		before(function () {
-
-			server.connection();
-			return server.registerAsync({
-				register : Rest,
-				options  : {
-					instances : instanceAdapter
-				}
-			});
-		});
-
-		after(function () {
-			return server.stopAsync();
-		});
-
-		describe("with an invalid instance id", function () {
-			var result;
-			var getInstanceStub;
-			before(function () {
-
-				getInstanceStub = Sinon.stub(instanceAdapter, "getInstance")
-				.returns(Bluebird.resolve(null));
-
-				return new Request("GET", "/v1/instances/" + INVALID_QUERY).inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				getInstanceStub.restore();
-			});
-
-			it("shows the instance does not exist", function () {
-				expect(result.statusCode,"status").to.equal(404);
-				expect(getInstanceStub.args[ 0 ][ 0 ].id).to.equal(INVALID_QUERY);
-			});
-		});
-
-		describe("with a valid instance", function () {
-			var getInstanceStub;
-
-			before(function () {
-				getInstanceStub = Sinon.stub(instanceAdapter, "getInstance")
-				.returns(Bluebird.resolve({
-					id    : VALID_INSTANCE_ID,
-					ami   : "ami-d05e75b8",
-					type  : "t2.micro",
-					state : "pending",
-					uri   : ""
-				}));
-			});
-
-			after(function () {
-				getInstanceStub.restore();
-			});
-
-			it("gets the instance of the requsted id", function () {
-				return new Request("GET", "/v1/instances/" + VALID_INSTANCE_ID).inject(server)
-				.then(function (response) {
-					var res = JSON.parse(response.payload);
-					expect(response.statusCode,"status").to.equal(200);
-					expect(res.id).to.match(ID_REGEX);
-					expect(res.ami).to.equal(VALID_AMI);
-					expect(res.type).to.equal(VALID_TYPE);
-					expect(res.state).to.equal("pending");
-					expect(getInstanceStub.args[ 0 ][ 0 ].id).to.equal(VALID_INSTANCE_ID);
-				});
-			});
-		});
-	});
-
-	describe("querying for instances", function () {
-
-		var server          = new Hapi.Server();
-		var instanceAdapter = new InstanceAdapter();
-
-		before(function () {
-			server.connection();
-			return server.registerAsync({
-				register : Rest,
-				options  : {
-					instances : instanceAdapter
-				}
-			});
-		});
-
-		after(function () {
-			return server.stopAsync();
-		});
-
-		describe("with a valid type", function () {
-			var getAllInstancesStub;
-
-			before(function () {
-				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
-				.returns(Bluebird.resolve([ {
-						id    : VALID_INSTANCE_ID,
-						ami   : "ami-d05e75b8",
-						type  : "t2.micro",
-						state : "pending",
-						uri   : ""
-					} ]
-				));
-			});
-
-			after(function () {
-				getAllInstancesStub.restore();
-			});
-
-			it("returns an array of instances with the given type", function () {
-				return new Request("GET", "/v1/instances?type=" + VALID_TYPE).inject(server)
-				.then(function (response) {
-					var res = JSON.parse(response.payload);
-					expect(response.statusCode,"status").to.equal(200);
-					expect(res.instances[ 0 ].id).to.match(ID_REGEX);
-					expect(res.instances[ 0 ].ami).to.equal(VALID_AMI);
-					expect(res.instances[ 0 ].type).to.equal(VALID_TYPE);
-					expect(res.instances[ 0 ].state).to.equal("pending");
-					expect(res.instances).to.have.length.of.at.least(1);
-					expect(getAllInstancesStub.args[ 0 ][ 0 ].type).to.equal(VALID_TYPE);
-				});
-			});
-		});
-
-		describe("with an invalid instance by sending non-exisitng Instance Id and type", function () {
-			var result;
-			var getAllInstancesStub;
-
-			before(function () {
-				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
-				.returns(Bluebird.resolve([ ]));
-
-				return new Request("GET", "/v1/instances?type=" + INVALID_QUERY + "&id=" + INVALID_QUERY)
-				.inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				getAllInstancesStub.restore();
-			});
-
-			it("returns an empty array of instances", function () {
-				var payload;
-				expect(result.statusCode,"status").to.equal(200);
-				payload = JSON.parse(result.payload);
-				expect(payload.instances.length).equal(0);
-				expect(getAllInstancesStub.args[ 0 ][ 0 ].type).to.equal(INVALID_QUERY);
-				expect(getAllInstancesStub.args[ 0 ][ 0 ].id).to.equal(INVALID_QUERY);
-				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(2);
-
-			});
-		});
-
-		describe("with a valid ID", function () {
-			var result;
-			var getAllInstancesStub;
-
-			before(function () {
-				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
-				.returns(Bluebird.resolve([ {
-						id    : VALID_INSTANCE_ID,
-						ami   : "ami-d05e75b8",
-						type  : "t2.micro",
-						state : "pending",
-						uri   : ""
-					} ]
-				));
-
-				return new Request("GET", "/v1/instances?id=" + VALID_INSTANCE_ID)
-				.inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				getAllInstancesStub.restore();
-			});
-
-			it("returns an instance with requested id", function () {
-				var payload;
-
-				expect(result.statusCode,"status").to.equal(200);
-				payload = JSON.parse(result.payload);
-				expect(payload.instances.length).equal(1);
-				expect(payload.instances[ 0 ].id).to.equal(VALID_INSTANCE_ID);
-				expect(getAllInstancesStub.args[ 0 ][ 0 ].id).to.equal(VALID_INSTANCE_ID);
-				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(1);
-			});
-		});
-
-		describe("with a valid AMI", function () {
-			var result;
-			var getAllInstancesStub;
-
-			before(function () {
-				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
-				.returns(Bluebird.resolve([ {
-						id    : VALID_INSTANCE_ID,
-						ami   : "ami-d05e75b8",
-						type  : "t2.micro",
-						state : "pending",
-						uri   : ""
-					} ]
-				));
-
-				return new Request("GET", "/v1/instances?ami=" + VALID_AMI)
-				.inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				getAllInstancesStub.restore();
-			});
-
-			it("returns an array of instances with requested ami", function () {
-				expect(getAllInstancesStub.args[ 0 ][ 0 ].ami).to.equal(VALID_AMI);
-				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(1);
-				expect(result.statusCode,"status").to.equal(200);
-			});
-		});
-
-		describe("with state=pending", function () {
-			var result;
-			var getAllInstancesStub;
-
-			before(function () {
-				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
-				.returns(Bluebird.resolve([ {
-						id    : VALID_INSTANCE_ID,
-						ami   : "ami-d05e75b8",
-						type  : "t2.micro",
-						state : "pending",
-						uri   : ""
-					} ]
-				));
-
-				return new Request("GET", "/v1/instances?state=pending")
-				.inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				getAllInstancesStub.restore();
-			});
-
-			it("returns an array of instances which are in a pending state", function () {
-				expect(getAllInstancesStub.args[ 0 ][ 0 ].state).to.equal("pending");
-				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(1);
-				expect(result.statusCode,"status").to.equal(200);
-			});
-		});
-
-		describe("with invalid URI", function () {
-			var result;
-			var getAllInstancesStub;
-
-			before(function () {
-				getAllInstancesStub = Sinon.stub(instanceAdapter, "getAllInstances")
-				.returns(Bluebird.resolve([ ]));
-
-				return new Request("GET", "/v1/instances?uri=" + INVALID_QUERY)
-				.inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				getAllInstancesStub.restore();
-			});
-
-			it("returns an empty array of intsances", function () {
-				var payload;
-				expect(getAllInstancesStub.args[ 0 ][ 0 ].uri).to.equal(INVALID_QUERY);
-				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(1);
-				expect(result.statusCode,"status").to.equal(200);
-				payload = JSON.parse(result.payload);
-				expect(payload.instances.length).equal(0);
-			});
-		});
-
-		describe("with multiple values for a parameter", function () {
-			var result;
-
-			before(function () {
-
-				return new Request("GET", "/v1/instances?ami=" + INVALID_QUERY + "&ami=" + INVALID_QUERY)
-				.inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			it("fails and returns a Bad Request", function () {
-				expect(result.statusCode,"status").to.equal(400);
-			});
-		});
-	});
-
-	describe("encountering an internal error", function () {
-		var server    = new Hapi.Server();
-		var instances = new InstanceAdapter();
-
-		before(function () {
-			server.connection();
-			return server.registerAsync({
-				register : Rest,
-				options  : {
-					instances : instances
-				}
-			});
-		});
-
-		after(function () {
-			return server.stopAsync();
-		});
-
-		describe("failing to find an instance for specified instanceId", function () {
-			var result;
-
-			before(function () {
-				Sinon.stub(instances, "getInstance").rejects(new Error("Simulated Failure"));
-
-				return new Request("GET", "/v1/instances/foo-bar-baz").inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				instances.getInstance.restore();
-			});
-
-			it("fails", function () {
-				expect(result.statusCode).to.equal(500);
-			});
-		});
-
-		describe("failing to find all instances", function () {
-			var result;
-
-			before(function () {
-				Sinon.stub(instances, "getAllInstances", function () {
-					return Bluebird.reject(new Error("Simulated Failure."));
-				});
-				return new Request("GET", "/v1/instances?id=" + VALID_INSTANCE_ID).inject(server)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				instances.getAllInstances.restore();
-			});
-
-			it("fails", function () {
-				expect(result.statusCode).to.equal(500);
-			});
-		});
 	});
 });
+
