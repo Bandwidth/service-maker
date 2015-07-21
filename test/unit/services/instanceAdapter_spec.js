@@ -21,7 +21,7 @@ describe("The InstanceAdapter class ", function () {
 
 	describe("creating a new instance", function () {
 		it("returns a new instance with default values", function () {
-			var instances    = new InstanceAdapter();
+			var instances = new InstanceAdapter();
 
 			return instances.createInstance()
 			.then(function (result) {
@@ -30,47 +30,13 @@ describe("The InstanceAdapter class ", function () {
 				expect(result.type).to.equal(DEFAULT_TYPE);
 				expect(result.ami).to.equal(DEFAULT_AMI);
 			});
-		});
-
-	});
-
-	describe("creating a new instance: when AWS fails", function () {
-		it("updates the record in the database with status set to failed", function () {
-			var instances      = new InstanceAdapter();
-
-			return instances.createInstance()
-			.then(function (result) {
-
-				expect(result).to.be.an.instanceOf(Instance);
-				expect(result.id).to.match(ID_REGEX);
-				expect(result.type).to.equal(DEFAULT_TYPE);
-				expect(result.ami).to.equal(DEFAULT_AMI);
-
-				var failedInstance = new Instance({
-					id    : result.id,
-					ami   : result.ami,
-					state : "failed",
-					type  : result.type,
-					uri   : result.uri
-				});
-
-				return instances.updateInstance(failedInstance);
-			})
-			.then(function (result) {
-				expect(result).to.be.an.instanceOf(Instance);
-				expect(result.id).to.match(ID_REGEX);
-				expect(result.type).to.equal(DEFAULT_TYPE);
-				expect(result.ami).to.equal(DEFAULT_AMI);
-				expect(result.state).to.equal("failed");
-			});
-
 		});
 
 	});
 
 	describe("creating a new instance, passing ami and type", function () {
 		it("returns a new instance with default values", function () {
-			var instances    = new InstanceAdapter();
+			var instances = new InstanceAdapter();
 
 			return instances.createInstance(DEFAULT_AMI, DEFAULT_TYPE)
 			.then(function (result) {
@@ -85,7 +51,7 @@ describe("The InstanceAdapter class ", function () {
 
 	describe("Getting an instance", function () {
 		describe("with a valid instanceId", function () {
-			var instances    = new InstanceAdapter();
+			var instances = new InstanceAdapter();
 
 			before(function () {
 				return instances.createInstance()
@@ -120,7 +86,7 @@ describe("The InstanceAdapter class ", function () {
 	});
 
 	describe("Querying for instances", function () {
-		var instances    = new InstanceAdapter();
+		var instances = new InstanceAdapter();
 
 		before(function () {
 
@@ -251,4 +217,32 @@ describe("The InstanceAdapter class ", function () {
 			});
 		});
 	});
+
+	describe("updating an already created instance", function () {
+
+		it("updates the instance and sets state to failed", function () {
+			var instances = new InstanceAdapter();
+
+			return instances.createInstance()
+			.then(function (result) {
+				var INSTANCE_ID = result.id;
+				var updatedInstance = new Instance({
+					id    : INSTANCE_ID,
+					ami   : DEFAULT_AMI,
+					type  : DEFAULT_TYPE,
+					state : "failed",
+					uri   : null
+				});
+				return instances.updateInstance(updatedInstance);
+			})
+			.then(function (result) {
+				expect(result).to.be.an.instanceOf(Instance);
+				expect(result.id).to.match(ID_REGEX);
+				expect(result.type).to.equal(DEFAULT_TYPE);
+				expect(result.ami).to.equal(DEFAULT_AMI);
+				expect(result.state).to.equal("failed");
+			});
+		});
+	});
+
 });
