@@ -111,6 +111,7 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
+					//check if DB has been updated to running & uri has been updated
 				});
 			});
 		});
@@ -123,6 +124,7 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
+					//check if DB has been updated to running & uri has been updated
 				});
 			});
 		});
@@ -310,7 +312,6 @@ describe("The Rest plugin", function () {
 
 			});
 		});
-
 	});
 
 	describe("getting an instance", function () {
@@ -658,6 +659,144 @@ describe("The Rest plugin", function () {
 
 			it("fails", function () {
 				expect(result.statusCode).to.equal(500);
+			});
+		});
+	});
+
+	describe("creating an instance", function () {
+		describe("Ssh polling encounters an error", function () {
+			var server          = new Hapi.Server();
+			var instanceAdapter = new InstanceAdapter();
+			var createInstanceStub;
+			var runInstancesStub;
+			var startSshPollingStub;
+			var awsAdapter = new AwsAdapter();
+			var sshAdapter = new SshAdapter();
+
+			before(function () {
+				createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
+				.returns(Bluebird.resolve({
+					ami   : "ami-d05e75b8",
+					type  : "t2.micro",
+					state : "pending",
+					uri   : ""
+				}));
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id         : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami        : "ami-d05e75b8",
+					type       : "t2.micro",
+					revision   : 0,
+					state      : "pending",
+					uri        : null,
+					instanceID : VALID_EC2_INSTANCE
+				}));
+
+				startSshPollingStub = Sinon.stub(sshAdapter, "startSshPolling", function () {
+					return Bluebird.reject(new Error("Simulated Failure"));
+				});
+
+				server.connection();
+				return server.registerAsync({
+					register : Rest,
+					options  : {
+						awsAdapter : awsAdapter,
+						sshAdapter : sshAdapter
+					}
+				});
+			});
+
+			after(function () {
+				createInstanceStub.restore();
+				runInstancesStub.restore();
+				startSshPollingStub.restore();
+				return server.stopAsync();
+			});
+
+			it("fails", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					response.payload = JSON.parse(response.payload);
+					expect(response.statusCode, "status").to.equal(201);
+					expect(response.headers.location, "location").to.match(location);
+					//check if DB has been updated to failed
+				});
+			});
+		});
+	});
+
+	describe("creating an instance", function () {
+		describe("Getting IP address encounters an error", function () {
+			var server          = new Hapi.Server();
+			var instanceAdapter = new InstanceAdapter();
+			var createInstanceStub;
+			var runInstancesStub;
+			var startSshPollingStub;
+			var getPublicIPAddressStub;
+			var awsAdapter = new AwsAdapter();
+			var sshAdapter = new SshAdapter();
+
+			before(function () {
+				createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
+				.returns(Bluebird.resolve({
+					ami   : "ami-d05e75b8",
+					type  : "t2.micro",
+					state : "pending",
+					uri   : ""
+				}));
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id         : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami        : "ami-d05e75b8",
+					type       : "t2.micro",
+					revision   : 0,
+					state      : "pending",
+					uri        : null,
+					instanceID : VALID_EC2_INSTANCE
+				}));
+
+				startSshPollingStub = Sinon.stub(sshAdapter, "startSshPolling")
+				.returns(Bluebird.resolve(VALID_EC2_INSTANCE));
+
+				getPublicIPAddressStub = Sinon.stub(awsAdapter,"getPublicIPAddress", function () {
+					return Bluebird.reject(new Error("Simulated Failure"));
+				});
+
+				server.connection();
+				return server.registerAsync({
+					register : Rest,
+					options  : {
+						awsAdapter : awsAdapter,
+						sshAdapter : sshAdapter
+					}
+				});
+			});
+
+			after(function () {
+				createInstanceStub.restore();
+				runInstancesStub.restore();
+				startSshPollingStub.restore();
+				return server.stopAsync();
+			});
+
+			it("fails", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					response.payload = JSON.parse(response.payload);
+					expect(response.statusCode, "status").to.equal(201);
+					expect(response.headers.location, "location").to.match(location);
+					//check if DB has been updated to failed
+				});
 			});
 		});
 	});

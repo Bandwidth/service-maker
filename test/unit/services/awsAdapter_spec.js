@@ -127,5 +127,4 @@ describe("The AwsAdapter class ", function () {
 
 
 	});
-
 });
