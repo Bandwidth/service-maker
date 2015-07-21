@@ -1,6 +1,11 @@
 language: node_js
 node_js:
-  - "0.12"
+- '0.12'
 branches:
   only:
   - v1.0
+deploy:
+  provider: heroku
+  api_key:
+    secure: P2vKVjv+lsRywML6rm9ADf2erbKYEUV/qHOAKZ51sG1Wg59OT0gVOoiLNOwhHmX4XKqCjjUoijKj7ExEWttic/MrDxKmR3hz2ptz0C4NfJhblBB4uQAcUNqfwrdrDe1EbFW+Xs1511AHr1gRzE+J4wSTtPyT1E83Z0uPilpRDu9jghj97MpA/JPqKbBaVgLJo0Zr9aWOfGdxKB2nUJVCFhxGbOHrBffYUg/tgL2QnH1gQeQ+tFc8hBWLMZyRsLccrQAngKPuA4kGBq25SYbEea11Cv+IAwETqN4OseoOloq1qvsaazr+26ftWDIBgZPqY8cATqhZc8R31UEgyTBUEOAaTsQ9TWXhISQW8Qxy/Fan5ftBUu8MtNo+KPoWUMKS+CyW3L8XaIzYnxeYk+ZOqVh8BeR5Lxmu2/f2Rqo1jsdcXvRilZi7ZaGJ5vHso4115XYH6SWxIDyTaX1MIw6gkZ4/v5uA+ae+J2B66m9v385fsh+m9IslYxfAcL7WMcfpdu2sYt+f/+JPo+HXnuIJFkYdQRgCvlotZx9Xx02JAgzEZIP4Uz3doWLyzfWmIBBkDYBORlqmAPQuXr6piBi4UXAZxkP326CwutW1LKsZXrUXpTiPPD+nErGa59Th/Mcqg3hn6uu9nAMknglDR6FjtxhA1FSvNhArsVJN/7AvjOo=
+    app: service-maker
