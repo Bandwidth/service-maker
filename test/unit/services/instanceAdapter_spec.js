@@ -61,6 +61,7 @@ describe("The InstanceAdapter class ", function () {
 			});
 
 			it("gets a valid instance", function () {
+
 				return instances.getInstance({ id : VALID_INSTANCE_ID })
 				.then(function (result) {
 					expect(result).to.be.an.instanceOf(Instance);
@@ -138,90 +139,6 @@ describe("The InstanceAdapter class ", function () {
 		describe("when the mapper fails to create a new model", function () {
 			var result;
 			var mapperStub;
-
-			before(function () {
-				var mapper = new Genesis.MemoryMapper();
-				var instances = new InstanceAdapter(mapper);
-
-				mapperStub = Sinon.stub(mapper, "create")
-					.rejects(new Error("Simulated Failure"));
-
-				return instances.createInstance(DEFAULT_AMI, DEFAULT_TYPE)
-				.catch(function (err) {
-					result = err;
-				});
-			});
-
-			after(function () {
-				mapperStub.restore();
-			});
-
-			it("throws an error", function () {
-				expect(result, "error").to.be.an.instanceOf(Error);
-				expect(result.message, "error message").to.equal("Simulated Failure");
-			});
-		});
-
-		describe("when the mapper fails to find an instance", function () {
-			var result;
-			var mapperStub;
-
-			before(function () {
-				var mapper = new Genesis.MemoryMapper();
-				var instances = new InstanceAdapter(mapper);
-
-				mapperStub = Sinon.stub(mapper, "findOne")
-					.rejects(new Error("Simulated Failure"));
-
-				return instances.getInstance({ id : "foo-bar-baz" })
-				.catch(function (err) {
-					result = err;
-				});
-			});
-
-			after(function () {
-				mapperStub.restore();
-			});
-
-			it("throws an error", function () {
-				expect(result, "error").to.be.an.instanceOf(Error);
-				expect(result.message, "error message").to.equal("Simulated Failure");
-			});
-		});
-
-		describe("when the mapper fails to find an instance for the queried parameters", function () {
-			var result;
-			var mapperStub;
-
-			before(function () {
-				var mapper = new Genesis.MemoryMapper();
-				var instances = new InstanceAdapter(mapper);
-
-				mapperStub = Sinon.stub(mapper, "find")
-					.rejects(new Error("Simulated Failure"));
-
-				return instances.getAllInstances({ id : "foo-bar-baz" })
-				.catch(function (err) {
-					result = err;
-				});
-			});
-
-			after(function () {
-				mapperStub.restore();
-			});
-
-			it("throws an error", function () {
-				expect(result, "error").to.be.an.instanceOf(Error);
-				expect(result.message, "error message").to.equal("Simulated Failure");
-			});
-		});
-	});
-	describe("The mapper faces an internal error", function () {
-		describe("when the mapper fails to create a new model", function () {
-			var result;
-			var mapperStub;
-			var DEFAULT_TYPE = "t2.micro";
-			var DEFAULT_AMI  = "ami-d05e75b8";
 
 			before(function () {
 				var mapper = new Genesis.MemoryMapper();
