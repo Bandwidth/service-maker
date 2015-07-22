@@ -218,7 +218,6 @@ describe("The AwsAdapter class ", function () {
 
 			awsAdapter.getPublicIPAddress(VALID_EC2_INSTANCE)
 			.then(function (response) {
-				console.log("Result is : " + response);
 				result = response;
 			})
 			.catch(function (error) {

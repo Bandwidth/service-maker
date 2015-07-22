@@ -111,7 +111,7 @@ describe("The Rest plugin", function () {
 				.returns(Bluebird.resolve());
 
 				updateInstanceStub = Sinon.stub(instanceAdapter,"updateInstance")
-				.returns(Bluebird.resolve());
+				.returns(Bluebird.resolve("asdasd"));
 
 				getPublicIPAddressStub = Sinon.stub(awsAdapter, "getPublicIPAddress", function () {
 					return (Bluebird.resolve(VALID_IP_ADDRESS));
