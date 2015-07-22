@@ -53,7 +53,6 @@ describe("The Rest plugin", function () {
 			});
 		});
 	});
-
 	describe("creating a new instance", function () {
 		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
