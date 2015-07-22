@@ -1,11 +1,11 @@
 {
   "name": "service-maker",
-  "version": "0.0.1",
-  "description": "Interaction with AWS--simplified!",
-  "main": "index.js",
+  "version": "2.0.0",
+  "description": "Deploy imaged EC2 instances quickly and simply.",
+  "main": "lib/server.js",
   "scripts": {
     "test": "grunt",
-    "start": "node index.js"
+    "start": "node lib/server.js"
   },
   "repository": {
     "type": "git",
@@ -19,37 +19,34 @@
     "node"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "",
   "bugs": {
     "url": "https://github.com/inetCatapult/service-maker/issues"
   },
   "homepage": "https://github.com/inetCatapult/service-maker",
-  "dependencies": {
-    "aws-sdk": "^2.1.12",
-    "bluebird": "^2.9.24",
-    "boom": "^2.6.1",
-    "chai": "^1.10.0",
-    "commander": "^2.6.0",
-    "good": "^5.1.1",
-    "good-console": "^4.1.0",
+  "devDependencies": {
+    "sinon": "^1.15.4",
+    "sinon-as-promised": "^4.0.0",
+    "chai": "^3.0.0",
+    "apparition": "^1.0.0",
     "grunt": "^0.4.5",
     "grunt-cli": "^0.1.13",
     "grunt-contrib-jshint": "^0.11.0",
     "grunt-jscs": "1.2.0",
     "grunt-mocha-istanbul": "^2.3.1",
-    "hapi": "^8.1.0",
-    "joi": "^5.1.0",
-    "jscs": "1.10.0",
-    "mocha": "^2.1.0",
-    "mockery": "^1.4.0",
-    "nock": "^1.4.0",
-    "proxyquire": "^1.4.0",
-    "request": "^2.53.0",
-    "sinon": "^1.14.1",
-    "tap": "^0.7.1",
-    "text-table": "^0.2.0"
+    "jscs": "1.10.0"
   },
-  "devDependencies": {
-    "touch": "0.0.3"
+  "dependencies": {
+    "hapi": "^8.6.1",
+    "bluebird": "^2.9.30",
+    "genesis": "^1.0.0",
+    "joi": "^6.5.0",
+    "mongodb": "^2.0.35",
+    "uuid": "^2.0.1",
+    "boom": "^2.8.0",
+    "lodash": "^2.4.2",
+    "aws-sdk": "^2.1.38",
+    "good-console": "^5.0.2",
+    "good": "^6.3.0"
   }
 }
