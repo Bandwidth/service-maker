@@ -646,4 +646,97 @@ describe("The Rest plugin", function () {
 			});
 		});
 	});
+
+	describe("updating a created instance", function () {
+
+		var server    = new Hapi.Server();
+		var instances = new InstanceAdapter();
+		var result;
+		var instanceID;
+		var updatedInstance;
+
+		before(function () {
+
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					instances : instances
+				}
+			});
+		});
+
+		after(function () {
+			return server.stopAsync();
+		});
+
+		describe("setting the status of a created instance to failed", function () {
+
+			before(function () {
+				return instances.createInstance()
+				.then(function (instance) {
+					instanceID = instance.id;
+					updatedInstance = new Instance({
+						id    : instance.id,
+						ami   : instance.ami,
+						type  : instance.type,
+						state : "failed",
+						uri   : instance.uri
+					});
+
+					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami   : instance.ami,
+						type  : instance.type,
+						uri   : instance.uri,
+						state : "failed"
+					});
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			it("the status is set to failed", function () {
+				return instances.getInstance({ id : instanceID })
+				.then(function (instance) {
+					expect(result.payload).to.equal("The instance was successfully updated.");
+					expect(instance.id).to.equal(updatedInstance.id);
+					expect(instance.ami).to.equal(updatedInstance.ami);
+					expect(instance.type).to.equal(updatedInstance.type);
+					expect(instance.state).to.equal(updatedInstance.state);
+					expect(instance.uri).to.equal(updatedInstance.uri);
+				});
+			});
+		});
+
+		describe("when the instance ID doesn't exist", function () {
+
+			before(function () {
+				return instances.createInstance()
+				.then(function (instance) {
+					var request = new Request("PUT", "/v1/instances/" + INVALID_QUERY).mime("application/json")
+					.payload({
+						ami   : instance.ami,
+						type  : instance.type,
+						uri   : instance.uri,
+						state : "failed"
+					});
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			it("the status is set to failed", function () {
+				return instances.getInstance({ id : INVALID_QUERY })
+				.then(function () {
+					var error = JSON.parse(result.payload);
+					expect(error.statusCode).to.equal(500);
+				});
+			});
+		});
+	});
 });
