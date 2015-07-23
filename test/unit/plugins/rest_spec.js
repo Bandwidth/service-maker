@@ -6,7 +6,8 @@ var Hapi            = require("hapi");
 var Rest            = require("../../../lib/plugins/rest");
 var MemoryMapper    = require("genesis").MemoryMapper;
 var expect          = require("chai").expect;
-var InstanceAdapter = require("../../../lib/services/instanceAdapter.js");
+var InstanceAdapter = require("../../../lib/services/instanceAdapter");
+var Instance        = require("../../../lib/models/Instance");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var Sinon           = require("sinon");
 
