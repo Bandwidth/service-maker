@@ -54,20 +54,11 @@ describe("The Rest plugin", function () {
 
 	describe("creating a new instance", function () {
 		var server          = new Hapi.Server();
-		var instanceAdapter = new InstanceAdapter();
-		var createInstanceStub;
 		var runInstancesStub;
 
 		var awsAdapter = new AwsAdapter();
 
 		before(function () {
-			createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
-			.returns(Bluebird.resolve({
-				ami   : "ami-d05e75b8",
-				type  : "t2.micro",
-				state : "pending",
-				uri   : ""
-			}));
 
 			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 			.returns(Bluebird.resolve({
@@ -89,7 +80,6 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
-			createInstanceStub.restore();
 			runInstancesStub.restore();
 			return server.stopAsync();
 		});
@@ -141,29 +131,11 @@ describe("The Rest plugin", function () {
 
 	describe("fails in creating a new instance", function () {
 		var server          = new Hapi.Server();
-		var instanceAdapter = new InstanceAdapter();
-		var createInstanceStub;
 		var runInstancesStub;
-		var updateInstanceStub;
 
 		var awsAdapter = new AwsAdapter();
 
 		before(function () {
-			createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
-			.returns(Bluebird.resolve({
-				ami   : "ami-d05e75b8",
-				type  : "t2.micro",
-				state : "pending",
-				uri   : ""
-			}));
-
-			updateInstanceStub = Sinon.stub(instanceAdapter, "updateInstance")
-			.returns(Bluebird.resolve({
-				ami   : "ami-d05e75b8",
-				type  : "t2.micro",
-				state : "failed",
-				uri   : ""
-			}));
 
 			server.connection();
 
@@ -176,8 +148,6 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
-			updateInstanceStub.restore();
-			createInstanceStub.restore();
 			return server.stopAsync();
 		});
 
