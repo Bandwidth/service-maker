@@ -695,19 +695,19 @@ describe("The Rest plugin", function () {
 					return request.inject(server);
 				})
 				.then(function (response) {
-					result = response;
+					console.log(response);
+					result = response.result;
 				});
 			});
 
 			it("the status is set to failed", function () {
 				return instances.getInstance({ id : instanceID })
-				.then(function (instance) {
-					expect(result.payload).to.equal("The instance was successfully updated.");
-					expect(instance.id).to.equal(updatedInstance.id);
-					expect(instance.ami).to.equal(updatedInstance.ami);
-					expect(instance.type).to.equal(updatedInstance.type);
-					expect(instance.state).to.equal(updatedInstance.state);
-					expect(instance.uri).to.equal(updatedInstance.uri);
+				.then(function () {
+					expect(result.id).to.equal(updatedInstance.id);
+					expect(result.ami).to.equal(updatedInstance.ami);
+					expect(result.type).to.equal(updatedInstance.type);
+					expect(result.state).to.equal(updatedInstance.state);
+					expect(result.uri).to.equal(updatedInstance.uri);
 				});
 			});
 		});
