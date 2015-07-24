@@ -652,9 +652,6 @@ describe("The Rest plugin", function () {
 
 		var server    = new Hapi.Server();
 		var instances = new InstanceAdapter();
-		var result;
-		var instanceID;
-		var updatedInstance;
 
 		before(function () {
 
@@ -667,77 +664,213 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		after(function () {
-			return server.stopAsync();
-		});
-
 		describe("setting the status of a created instance to failed", function () {
 
+			var responseCode;
+			var updatedInstance;
+			var instanceID;
 			before(function () {
+
 				return instances.createInstance()
 				.then(function (instance) {
 					instanceID = instance.id;
+					return instances.getInstance({ id : instance.id });
+				})
+				.then(function (instance) {
 					updatedInstance = new Instance({
-						id    : instance.id,
-						ami   : instance.ami,
-						type  : instance.type,
-						state : "failed",
-						uri   : instance.uri
+						id       : instance.id,
+						ami      : instance.ami,
+						type     : instance.type,
+						state    : "failed",
+						uri      : instance.uri,
+						revision : 1
 					});
-
 					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 					.payload({
-						ami   : instance.ami,
-						type  : instance.type,
-						uri   : instance.uri,
-						state : "failed"
+						ami      : instance.ami,
+						type     : instance.type,
+						uri      : instance.uri,
+						state    : "failed",
+						revision : 0
 					});
 					return request.inject(server);
 				})
 				.then(function (response) {
-					console.log(response);
-					result = response.result;
+					responseCode = response.statusCode;
 				});
 			});
 
 			it("the status is set to failed", function () {
 				return instances.getInstance({ id : instanceID })
-				.then(function () {
-					expect(result.id).to.equal(updatedInstance.id);
-					expect(result.ami).to.equal(updatedInstance.ami);
-					expect(result.type).to.equal(updatedInstance.type);
-					expect(result.state).to.equal(updatedInstance.state);
-					expect(result.uri).to.equal(updatedInstance.uri);
+				.then(function (response) {
+					expect(response).to.deep.equal(updatedInstance);
+					expect(responseCode).to.equal(200);
 				});
 			});
 		});
 
 		describe("when the instance ID doesn't exist", function () {
 
+			var result;
+
 			before(function () {
-				return instances.createInstance()
-				.then(function (instance) {
-					var request = new Request("PUT", "/v1/instances/" + INVALID_QUERY).mime("application/json")
-					.payload({
-						ami   : instance.ami,
-						type  : instance.type,
-						uri   : instance.uri,
-						state : "failed"
-					});
-					return request.inject(server);
-				})
+				var request = new Request("PUT", "/v1/instances/" + INVALID_QUERY).mime("application/json")
+				.payload({
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					uri      : null,
+					state    : "failed",
+					revision : 0
+				});
+				return request.inject(server)
 				.then(function (response) {
 					result = response;
 				});
 			});
 
-			it("the status is set to failed", function () {
-				return instances.getInstance({ id : INVALID_QUERY })
-				.then(function () {
-					var error = JSON.parse(result.payload);
-					expect(error.statusCode).to.equal(500);
+			it("a 404 error is thrown", function () {
+				expect(result.statusCode).to.equal(404);
+			});
+		});
+
+		describe("when the payload is malformed", function () {
+
+			var result;
+
+			before(function () {
+				var request = new Request("PUT", "/v1/instances/" + INVALID_QUERY).mime("application/json")
+				.payload({
+					ami      : [ "ami-d05e75b8" ],
+					type     : "t2.micro",
+					uri      : null,
+					state    : "failed",
+					revision : 0
 				});
+				return request.inject(server)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			it("a 400 error is thrown", function () {
+				expect(result.statusCode).to.equal(400);
+			});
+		});
+
+		describe("when two requests are made simultaneously", function () {
+
+			var firstResponse;
+			var secondResponse;
+			var instanceID;
+
+			before(function () {
+				return instances.createInstance()
+				.then(function (instance) {
+					instanceID = instance.id;
+					return instances.getInstance({ id : instance.id });
+				})
+				.then(function (instance) {
+					var firstRequest = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami      : instance.ami,
+						type     : instance.type,
+						uri      : null,
+						state    : "ready",
+						revision : 0
+					});
+
+					var secondRequest = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami      : instance.id,
+						type     : instance.type,
+						uri      : null,
+						state    : "failed",
+						revision : 0
+					});
+
+					firstRequest.inject(server)
+					.then(function (response) {
+						firstResponse = response;
+					});
+
+					secondRequest.inject(server)
+					.then(function (response) {
+						secondResponse = response;
+					});
+				});
+
+			});
+
+			it("one succeeds while the other fails", function () {
+				if (firstResponse.statusCode === 200 && secondResponse.statusCode === 500) {
+					instances.getInstance({ id : instanceID })
+					.then(function (instance) {
+						expect(instance.state).to.equal("ready");
+					});
+				}
+				else if (secondResponse.statusCode === 200 && firstResponse.statusCode === 500) {
+					instances.getInstance({ id : instanceID })
+					.then(function (instance) {
+						expect(instance.state).to.equal("failed");
+					});
+				}
 			});
 		});
 	});
+
+	describe("update when the connection to the database fails", function () {
+
+		var updatedInstance;
+		var result;
+		var updateStub;
+		var server    = new Hapi.Server();
+		var instances = new InstanceAdapter();
+
+		before(function () {
+			updateStub = Sinon.stub(instances, "updateInstance").rejects(new Error("Simulated Failure."));
+			server.connection();
+			server.registerAsync({
+				register : Rest,
+				options  : {
+					instances : instances
+				}
+			});
+			return instances.createInstance()
+			.then(function (instance) {
+				return instances.getInstance({ id : instance.id });
+			})
+			.then(function (instance) {
+				updatedInstance = new Instance({
+					id       : instance.id,
+					ami      : instance.ami,
+					type     : instance.type,
+					state    : "failed",
+					uri      : instance.uri,
+					revision : 1
+				});
+				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+				.payload({
+					ami      : instance.ami,
+					type     : instance.type,
+					uri      : instance.uri,
+					state    : "failed",
+					revision : 0
+				});
+				return request.inject(server);
+			})
+			.then(function (response) {
+				result = response.result;
+			});
+		});
+
+		after(function () {
+			updateStub.restore();
+		});
+
+		it("throws a 500 error", function () {
+			expect(result.statusCode).to.equal(500);
+		});
+
+	});
+
 });
