@@ -8,7 +8,6 @@ var MemoryMapper    = require("genesis").MemoryMapper;
 var expect          = require("chai").expect;
 var InstanceAdapter = require("../../../lib/services/instanceAdapter.js");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
-var SshAdapter      = require("../../../lib/services/sshAdapter");
 var Sinon           = require("sinon");
 
 require("sinon-as-promised");
@@ -16,16 +15,15 @@ require("sinon-as-promised");
 Bluebird.promisifyAll(Hapi);
 
 describe("The Rest plugin", function () {
-	var VALID_INSTANCE_ID  = "da14fbf2-5404-4f92-b55f-a961578204ed";
-	var VALID_AMI          = "ami-d05e75b8";
-	var VALID_TYPE         = "t2.micro";
-	var ID_REGEX           = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+	var VALID_INSTANCE_ID = "da14fbf2-5404-4f92-b55f-a961578204ed";
+	var VALID_AMI         = "ami-d05e75b8";
+	var VALID_TYPE        = "t2.micro";
+	var ID_REGEX          = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
-	var INVALID_AMI        = [ "ami-defualt" ];
-	var INVALID_QUERY      = "clumsy-cheetah";
-	var location           = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
-	var VALID_EC2_INSTANCE = "i-9444c16a";
-	var VALID_IP_ADDRESS   = "127.0.0.1";
+	var INVALID_AMI       = [ "ami-defualt" ];
+	var INVALID_QUERY     = "clumsy-cheetah";
+
+	var location          = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 
 	it("is a Hapi plugin", function () {
 		expect(Rest, "attributes").to.have.property("register")
@@ -53,76 +51,40 @@ describe("The Rest plugin", function () {
 			});
 		});
 	});
+
 	describe("creating a new instance", function () {
 		var server          = new Hapi.Server();
-		var instanceAdapter = new InstanceAdapter();
-		var createInstanceStub;
 		var runInstancesStub;
-		var startSshPollingStub;
-		var getPublicIPAddressStub;
-		var updateInstanceStub;
 
 		var awsAdapter = new AwsAdapter();
-		var sshAdapter = new SshAdapter();
 
 		before(function () {
-			createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
-			.returns(Bluebird.resolve({
-				id    : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
-				ami   : "ami-d05e75b8",
-				type  : "t2.micro",
-				state : "pending",
-				uri   : ""
-			}));
 
 			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 			.returns(Bluebird.resolve({
-				id         : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
-				ami        : "ami-d05e75b8",
-				type       : "t2.micro",
-				revision   : 0,
-				state      : "pending",
-				uri        : null,
-				instanceID : VALID_EC2_INSTANCE
+				id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+				ami      : "ami-d05e75b8",
+				type     : "t2.micro",
+				revision : 0,
+				state    : "pending",
+				uri      : null
 			}));
 
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
 				options  : {
-					awsAdapter : awsAdapter,
-					sshAdapter : sshAdapter,
-					instances  : instanceAdapter
+					awsAdapter : awsAdapter
 				}
 			});
 		});
 
 		after(function () {
-			createInstanceStub.restore();
 			runInstancesStub.restore();
 			return server.stopAsync();
 		});
 
 		describe("with valid parameters passed", function () {
-
-			before(function () {
-				startSshPollingStub = Sinon.stub(sshAdapter, "startSshPolling")
-				.returns(Bluebird.resolve());
-
-				updateInstanceStub = Sinon.stub(instanceAdapter,"updateInstance")
-				.returns(Bluebird.resolve("asdasd"));
-
-				getPublicIPAddressStub = Sinon.stub(awsAdapter, "getPublicIPAddress", function () {
-					return (Bluebird.resolve(VALID_IP_ADDRESS));
-				});
-			});
-
-			after(function () {
-				getPublicIPAddressStub.restore();
-				startSshPollingStub.restore();
-				updateInstanceStub.restore();
-			});
-
 			it("creates the instance and returns the canonical uri", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
@@ -133,32 +95,11 @@ describe("The Rest plugin", function () {
 					response.payload = JSON.parse(response.payload);
 					expect(response.statusCode, "status").to.equal(201);
 					expect(response.headers.location, "location").to.match(location);
-					expect(startSshPollingStub.called).to.be.true;
-					expect(getPublicIPAddressStub.called).to.be.true;
-					expect(updateInstanceStub.called).to.be.true;
 				});
 			});
 		});
 
 		describe("with no parameters passed", function () {
-			before(function () {
-				startSshPollingStub = Sinon.stub(sshAdapter, "startSshPolling")
-				.returns(Bluebird.resolve());
-
-				updateInstanceStub = Sinon.stub(instanceAdapter,"updateInstance")
-				.returns(Bluebird.resolve());
-
-				getPublicIPAddressStub = Sinon.stub(awsAdapter, "getPublicIPAddress", function () {
-					return (Bluebird.resolve(VALID_IP_ADDRESS));
-				});
-			});
-
-			after(function () {
-				getPublicIPAddressStub.restore();
-				startSshPollingStub.restore();
-				updateInstanceStub.restore();
-			});
-
 			it("creates the instance and returns the canonical uri", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json");
 				return request.inject(server)
@@ -170,139 +111,31 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("Ssh polling encounters an error", function () {
-			before(function () {
-				startSshPollingStub = Sinon.stub(sshAdapter, "startSshPolling")
-				.rejects(new Error("Simulated Failure"));
-
-				updateInstanceStub = Sinon.stub(instanceAdapter,"updateInstance")
-				.returns(Bluebird.resolve());
-
-				getPublicIPAddressStub = Sinon.stub(awsAdapter, "getPublicIPAddress", function () {
-					return (Bluebird.resolve(VALID_IP_ADDRESS));
-				});
-			});
-
-			after(function () {
-				getPublicIPAddressStub.restore();
-				startSshPollingStub.restore();
-				updateInstanceStub.restore();
-			});
-
-			it("fails", function () {
+		describe("with invalid parameter(s) passed", function () {
+			it("returns an error with statusCode 400", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami  : VALID_AMI,
+					ami  : INVALID_AMI,
 					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(201);
-					expect(response.headers.location, "location").to.match(location);
+					var error = JSON.parse(response.payload);
+					expect(error.statusCode, "status").to.equal(400);
+					expect(error.message)
+					.to.equal("Bad Request: Please check the parameters passed.");
 				});
 			});
 		});
 
-		describe("Getting IP address encounters an error", function () {
-
-			before(function () {
-				startSshPollingStub = Sinon.stub(sshAdapter, "startSshPolling")
-				.returns(Bluebird.resolve());
-
-				updateInstanceStub = Sinon.stub(instanceAdapter,"updateInstance")
-				.returns(Bluebird.resolve());
-
-				getPublicIPAddressStub = Sinon.stub(awsAdapter, "getPublicIPAddress")
-				.rejects(new Error("Simulated Failure"));
-			});
-
-			after(function () {
-				getPublicIPAddressStub.restore();
-				startSshPollingStub.restore();
-				updateInstanceStub.restore();
-			});
-
-			it("fails", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami  : VALID_AMI,
-					type : VALID_TYPE
-				});
-				return request.inject(server)
-				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(201);
-					expect(response.headers.location, "location").to.match(location);
-				});
-			});
-		});
 	});
 
-	describe("with invalid parameter(s) passed", function () {
-		var server          = new Hapi.Server();
-		var instanceAdapter = new InstanceAdapter();
-		var createInstanceStub;
-
-		before(function () {
-			var AMIError  = new Error();
-			AMIError.name = "ValidationError";
-
-			createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
-			.rejects(AMIError);
-
-			server.connection();
-
-			return server.registerAsync({
-				register : Rest,
-				options  : {
-					instances : instanceAdapter
-				}
-			});
-
-		});
-
-		after(function () {
-			createInstanceStub.restore();
-		});
-
-		it("returns an error with statusCode 400", function () {
-			var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-				ami  : INVALID_AMI,
-				type : VALID_TYPE
-			});
-			return request.inject(server)
-			.then(function (response) {
-				var error = JSON.parse(response.payload);
-				expect(error.statusCode, "status").to.equal(400);
-				expect(error.message)
-				.to.equal("Bad Request: Please check the parameters passed.");
-			});
-		});
-	});
 	describe("fails in creating a new instance", function () {
 		var server          = new Hapi.Server();
-		var instanceAdapter = new InstanceAdapter();
-		var createInstanceStub;
 		var runInstancesStub;
-		var updateInstanceStub;
 
 		var awsAdapter = new AwsAdapter();
 
 		before(function () {
-			createInstanceStub = Sinon.stub(instanceAdapter, "createInstance")
-			.returns(Bluebird.resolve({
-				ami   : "ami-d05e75b8",
-				type  : "t2.micro",
-				state : "pending",
-				uri   : ""
-			}));
-
-			updateInstanceStub = Sinon.stub(instanceAdapter, "updateInstance")
-			.returns(Bluebird.resolve({
-				ami   : "ami-d05e75b8",
-				type  : "t2.micro",
-				state : "failed",
-				uri   : ""
-			}));
 
 			server.connection();
 
@@ -315,8 +148,6 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
-			updateInstanceStub.restore();
-			createInstanceStub.restore();
 			return server.stopAsync();
 		});
 
@@ -405,41 +236,42 @@ describe("The Rest plugin", function () {
 				});
 			});
 		});
+
 	});
 
 	describe("when there is a problem with the database connection", function () {
-		var mapper = new MemoryMapper();
-		var server = new Hapi.Server();
+			var mapper = new MemoryMapper();
+			var server = new Hapi.Server();
 
-		before(function () {
-			Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
-			server.connection();
-			return server.registerAsync({
-				register : Rest,
-				options  : {
-					mapper : mapper
-				}
-			});
-		});
-
-		after(function () {
-			mapper.create.restore();
-			return server.stopAsync();
-		});
-
-		it("returns an internal server error with status code 500", function () {
-			var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-				ami  : VALID_AMI,
-				type : VALID_TYPE
-			});
-			return request.inject(server)
-			.then(function (response) {
-				expect(response.result.message).to.equal("An internal server error occurred");
-				expect(response.statusCode).to.equal(500);
+			before(function () {
+				Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
+				server.connection();
+				return server.registerAsync({
+					register : Rest,
+					options  : {
+						mapper : mapper
+					}
+				});
 			});
 
+			after(function () {
+				mapper.create.restore();
+				return server.stopAsync();
+			});
+
+			it("returns an internal server error with status code 500", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					expect(response.result.message).to.equal("An internal server error occurred");
+					expect(response.statusCode).to.equal(500);
+				});
+
+			});
 		});
-	});
 
 	describe("getting an instance", function () {
 
@@ -557,7 +389,6 @@ describe("The Rest plugin", function () {
 			});
 
 			it("returns an array of instances with the given type", function () {
-
 				return new Request("GET", "/v1/instances?type=" + VALID_TYPE).inject(server)
 				.then(function (response) {
 					var res = JSON.parse(response.payload);
@@ -599,6 +430,7 @@ describe("The Rest plugin", function () {
 				expect(getAllInstancesStub.args[ 0 ][ 0 ].type).to.equal(INVALID_QUERY);
 				expect(getAllInstancesStub.args[ 0 ][ 0 ].id).to.equal(INVALID_QUERY);
 				expect(Object.keys(getAllInstancesStub.args[ 0 ][ 0 ]).length).to.equal(2);
+
 			});
 		});
 
