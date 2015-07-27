@@ -1,5 +1,5 @@
 "use strict";
-/*jslint plusplus: true */
+
 var AWS        = require("aws-sdk");
 var sinon      = require("sinon");
 var expect     = require("chai").expect;
@@ -157,7 +157,7 @@ describe("The SSH Adapter Class", function () {
 					return (Bluebird.resolve(true));
 				});
 
-				return sshAdapter.startSshPolling(id)
+				return sshAdapter.SshPolling(id)
 				.then(function (data) {
 					result = data;
 				});
@@ -182,7 +182,11 @@ describe("The SSH Adapter Class", function () {
 				clock = sinon.useFakeTimers();
 				canSshStub = sinon.stub(sshAdapter,"canSsh",function () {
 					//First time it will return false. Second time will return true
-					return Bluebird.resolve((count++) > 0);
+					if (count > 0) {
+						return Bluebird.resolve(true);
+					}
+					count = count + 1;
+					return Bluebird.resolve(false);
 				});
 				delayStub = sinon.stub(Bluebird,"delay", function () {
 					clock.tick(SSH_POLLING_INTERVAL * 1000);
@@ -197,13 +201,11 @@ describe("The SSH Adapter Class", function () {
 			});
 
 			it("is possible to ssh eventually", function () {
-				clock.tick(SSH_POLLING_INTERVAL * 1000);
-
-				return sshAdapter.startSshPolling(id)
+				return sshAdapter.SshPolling(id)
 				.then(function (data) {
 					expect(data).to.be.true;
-					expect(count).to.equal(2);
-					expect(canSshStub).to.be.calledOnce;
+					expect(count).to.equal(1);
+					expect(canSshStub.callCount).to.equal(2);
 				});
 			});
 		});
@@ -217,7 +219,7 @@ describe("The SSH Adapter Class", function () {
 					return (Bluebird.reject(new Error("System Checks Failed")));
 				});
 
-				sshAdapter.startSshPolling(id)
+				sshAdapter.SshPolling(id)
 				.catch(function (err) {
 					result = err;
 				});
@@ -242,7 +244,7 @@ describe("The SSH Adapter Class", function () {
 					return (Bluebird.reject(new Error("System Checks Failed due to insufficient data")));
 				});
 
-				return sshAdapter.startSshPolling(id)
+				return sshAdapter.SshPolling(id)
 				.catch(function (err) {
 					result = err;
 				});
@@ -257,6 +259,44 @@ describe("The SSH Adapter Class", function () {
 				expect(result.message).to.be.equal("System Checks Failed due to insufficient data");
 			});
 		});
+
+		describe("when ssh polling encounters a timeout", function () {
+			var canSshStub;
+			var result;
+			var delayStub;
+			var clock;
+			var TOTAL_NO_OF_ATTEMPTS = 15;
+			var sshAdapter = new SshAdapter(ec2);
+			before(function () {
+				clock = sinon.useFakeTimers();
+
+				canSshStub = sinon.stub(sshAdapter,"canSsh", function () {
+					return (Bluebird.resolve(false));
+				});
+
+				delayStub = sinon.stub(Bluebird,"delay", function () {
+					clock.tick(SSH_POLLING_INTERVAL * 1000);
+					return Bluebird.resolve();
+				});
+
+				sshAdapter.SshPolling(id)
+				.catch(function (err) {
+					result = err;
+				});
+			});
+
+			after(function () {
+				canSshStub.restore();
+				delayStub.restore();
+			});
+
+			it("it throws an error", function () {
+				expect(result).to.be.an.instanceOf(Error);
+				expect(result.message).to.be.equal("Timeout occured!");
+				expect(canSshStub.callCount).to.equal(TOTAL_NO_OF_ATTEMPTS + 1);
+			});
+		});
+
 	});
 
 	describe("Aws faces an internal error", function () {
@@ -267,7 +307,7 @@ describe("The SSH Adapter Class", function () {
 			instanceStatusStub = sinon.stub(ec2, "describeInstanceStatusAsync")
 				.rejects(new Error("Simulated Failure"));
 
-			return sshAdapter.startSshPolling(id)
+			return sshAdapter.SshPolling(id)
 			.catch(function (error) {
 				result = error;
 			});
