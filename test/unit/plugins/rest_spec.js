@@ -683,7 +683,7 @@ describe("The Rest plugin", function () {
 						type     : instance.type,
 						state    : "failed",
 						uri      : instance.uri,
-						revision : 1
+						revision : instance.revision + 1
 					});
 					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 					.payload({
@@ -691,7 +691,7 @@ describe("The Rest plugin", function () {
 						type     : instance.type,
 						uri      : instance.uri,
 						state    : "failed",
-						revision : 0
+						revision : instance.revision
 					});
 					return request.inject(server);
 				})
@@ -722,6 +722,7 @@ describe("The Rest plugin", function () {
 					state    : "failed",
 					revision : 0
 				});
+
 				return request.inject(server)
 				.then(function (response) {
 					result = response;
@@ -738,15 +739,18 @@ describe("The Rest plugin", function () {
 			var result;
 
 			before(function () {
-				var request = new Request("PUT", "/v1/instances/" + INVALID_QUERY).mime("application/json")
-				.payload({
-					ami      : [ "ami-d05e75b8" ],
-					type     : "t2.micro",
-					uri      : null,
-					state    : "failed",
-					revision : 0
-				});
-				return request.inject(server)
+				return instances.createInstance()
+				.then(function (instance) {
+					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami      : [ "ami-d05e75b8" ],
+						type     : "t2.micro",
+						uri      : null,
+						state    : "failed",
+						revision : instance.revision
+					});
+					return request.inject(server);
+				})
 				.then(function (response) {
 					result = response;
 				});
@@ -776,7 +780,7 @@ describe("The Rest plugin", function () {
 						type     : instance.type,
 						uri      : null,
 						state    : "ready",
-						revision : 0
+						revision : instance.revision
 					});
 
 					var secondRequest = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
@@ -785,7 +789,7 @@ describe("The Rest plugin", function () {
 						type     : instance.type,
 						uri      : null,
 						state    : "failed",
-						revision : 0
+						revision : instance.revision
 					});
 
 					firstRequest.inject(server)
@@ -802,13 +806,13 @@ describe("The Rest plugin", function () {
 			});
 
 			it("one succeeds while the other fails", function () {
-				if (firstResponse.statusCode === 200 && secondResponse.statusCode === 500) {
+				if (firstResponse.statusCode === 200 && secondResponse.statusCode === 409) {
 					instances.getInstance({ id : instanceID })
 					.then(function (instance) {
 						expect(instance.state).to.equal("ready");
 					});
 				}
-				else if (secondResponse.statusCode === 200 && firstResponse.statusCode === 500) {
+				else if (secondResponse.statusCode === 200 && firstResponse.statusCode === 409) {
 					instances.getInstance({ id : instanceID })
 					.then(function (instance) {
 						expect(instance.state).to.equal("failed");
@@ -849,7 +853,7 @@ describe("The Rest plugin", function () {
 					type     : instance.type,
 					state    : "failed",
 					uri      : instance.uri,
-					revision : 1
+					revision : instance.revision + 1
 				});
 				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 				.payload({
@@ -857,7 +861,7 @@ describe("The Rest plugin", function () {
 					type     : instance.type,
 					uri      : instance.uri,
 					state    : "failed",
-					revision : 0
+					revision : instance.revision
 				});
 				return request.inject(server);
 			})
