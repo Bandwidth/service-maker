@@ -10,6 +10,7 @@ var InstanceAdapter = require("../../../lib/services/instanceAdapter");
 var Instance        = require("../../../lib/models/Instance");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var Sinon           = require("sinon");
+var _               = require("lodash");
 
 require("sinon-as-promised");
 
@@ -763,18 +764,15 @@ describe("The Rest plugin", function () {
 
 		describe("when two requests are made simultaneously", function () {
 
-			var firstResponse;
-			var secondResponse;
-			var instanceID;
+			var responses;
 
 			before(function () {
 				return instances.createInstance()
 				.then(function (instance) {
-					instanceID = instance.id;
 					return instances.getInstance({ id : instance.id });
 				})
 				.then(function (instance) {
-					var firstRequest = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 					.payload({
 						ami      : instance.ami,
 						type     : instance.type,
@@ -783,44 +781,20 @@ describe("The Rest plugin", function () {
 						revision : instance.revision
 					});
 
-					var secondRequest = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
-					.payload({
-						ami      : instance.id,
-						type     : instance.type,
-						uri      : null,
-						state    : "failed",
-						revision : instance.revision
-					});
-
-					firstRequest.inject(server)
-					.then(function (response) {
-						firstResponse = response;
-					});
-
-					secondRequest.inject(server)
-					.then(function (response) {
-						secondResponse = response;
-					});
+					return Bluebird.join(request.inject(server), request.inject(server));
+				})
+				.then(function (results) {
+					responses = results;
 				});
 
 			});
 
 			it("one succeeds while the other fails", function () {
-				if (firstResponse.statusCode === 200 && secondResponse.statusCode === 409) {
-					instances.getInstance({ id : instanceID })
-					.then(function (instance) {
-						expect(instance.state).to.equal("ready");
-					});
-				}
-				else if (secondResponse.statusCode === 200 && firstResponse.statusCode === 409) {
-					instances.getInstance({ id : instanceID })
-					.then(function (instance) {
-						expect(instance.state).to.equal("failed");
-					});
-				}
-				else {
-					throw new Error("Concurrency issues exist.");
-				}
+				var failed = _.some(responses, function (responses) {
+					return responses.statusCode === 409;
+				});
+
+				expect (failed, "concurrency").to.be.true;
 			});
 		});
 	});
