@@ -814,6 +814,9 @@ describe("The Rest plugin", function () {
 						expect(instance.state).to.equal("failed");
 					});
 				}
+				else {
+					throw new Error("Concurrency issues exist.");
+				}
 			});
 		});
 	});
