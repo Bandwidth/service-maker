@@ -499,7 +499,7 @@ describe("The AwsAdapter class ", function () {
 				waitForStub.restore();
 			});
 
-			it("terminates the instance and sets the state to terminated", function () {
+			it("terminates the instance, sets the state on the AWS console to terminated", function () {
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
 

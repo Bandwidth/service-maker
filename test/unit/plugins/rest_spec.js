@@ -720,7 +720,7 @@ describe("The Rest plugin", function () {
 				terminateInstancesStub.restore();
 			});
 
-			it("the status is set to failed", function () {
+			it("the status is set to terminated", function () {
 				return instances.getInstance({ id : instanceID })
 				.then(function (response) {
 					expect(response).to.deep.equal(updatedInstance);
