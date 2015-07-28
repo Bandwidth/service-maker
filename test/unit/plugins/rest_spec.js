@@ -665,7 +665,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("setting the status of a created instance to failed", function () {
+		describe("setting the status of a created instance to terminated", function () {
 
 			var responseCode;
 			var updatedInstance;
@@ -682,7 +682,7 @@ describe("The Rest plugin", function () {
 						id       : instance.id,
 						ami      : instance.ami,
 						type     : instance.type,
-						state    : "failed",
+						state    : "terminated",
 						uri      : instance.uri,
 						revision : instance.revision + 1
 					});
@@ -691,7 +691,7 @@ describe("The Rest plugin", function () {
 						ami      : instance.ami,
 						type     : instance.type,
 						uri      : instance.uri,
-						state    : "failed",
+						state    : "terminating",
 						revision : instance.revision
 					});
 					return request.inject(server);
@@ -777,7 +777,7 @@ describe("The Rest plugin", function () {
 						ami      : instance.ami,
 						type     : instance.type,
 						uri      : null,
-						state    : "ready",
+						state    : "running",
 						revision : instance.revision
 					});
 

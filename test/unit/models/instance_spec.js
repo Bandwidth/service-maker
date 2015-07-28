@@ -10,7 +10,7 @@ describe("The Instance model", function () {
 	var VALID_TYPE          = "t2.micro";
 	var VALID_AMI           = "ami-d05e75b8";
 	var VALID_STATE_PENDING = "pending";
-	var VALID_STATE_READY   = "ready";
+	var VALID_STATE_READY   = "running";
 	var VALID_URI           = "https://location.com";
 
 	var INVALID_AMI         = [ "ami-imagename", "ami-imagename-2" ];
@@ -43,7 +43,7 @@ describe("The Instance model", function () {
 		});
 	}
 
-	describeInitWith("all valid parameters, state - ready",
+	describeInitWith("all valid parameters, state - running",
 		{
 			id    : VALID_ID,
 			type  : VALID_TYPE,
