@@ -831,53 +831,8 @@ describe("The Rest plugin", function () {
 				expect (failed, "concurrency").to.be.true;
 			});
 		});
-	});
 
-	describe("update when the connection to the database fails", function () {
-
-		var result;
-		var updateStub;
-		var server    = new Hapi.Server();
-		var instances = new InstanceAdapter();
-
-		before(function () {
-			updateStub = Sinon.stub(instances, "updateInstance").rejects(new Error("Simulated Failure."));
-			server.connection();
-			server.registerAsync({
-				register : Rest,
-				options  : {
-					instances : instances
-				}
-			});
-			return instances.createInstance()
-			.then(function (instance) {
-				return instances.getInstance({ id : instance.id });
-			})
-			.then(function (instance) {
-				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
-				.payload({
-					ami      : instance.ami,
-					type     : instance.type,
-					uri      : instance.uri,
-					state    : "terminating",
-					revision : instance.revision
-				});
-				return request.inject(server);
-			})
-			.then(function (response) {
-				result = response.result;
-			});
-		});
-
-		after(function () {
-			updateStub.restore();
-		});
-
-		it("throws a 500 error", function () {
-			expect(result.statusCode).to.equal(500);
-		});
-
-		describe("setting the status of a created instance to a state not handled by update", function () {
+		describe("setting the status of an instance to a state not handled by update", function () {
 
 			var instanceID;
 			var responseCode;
@@ -923,7 +878,51 @@ describe("The Rest plugin", function () {
 				});
 			});
 		});
+	});
 
+	describe("update when the connection to the database fails", function () {
+
+		var result;
+		var updateStub;
+		var server    = new Hapi.Server();
+		var instances = new InstanceAdapter();
+
+		before(function () {
+			updateStub = Sinon.stub(instances, "updateInstance").rejects(new Error("Simulated Failure."));
+			server.connection();
+			server.registerAsync({
+				register : Rest,
+				options  : {
+					instances : instances
+				}
+			});
+			return instances.createInstance()
+			.then(function (instance) {
+				return instances.getInstance({ id : instance.id });
+			})
+			.then(function (instance) {
+				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+				.payload({
+					ami      : instance.ami,
+					type     : instance.type,
+					uri      : instance.uri,
+					state    : "terminating",
+					revision : instance.revision
+				});
+				return request.inject(server);
+			})
+			.then(function (response) {
+				result = response.result;
+			});
+		});
+
+		after(function () {
+			updateStub.restore();
+		});
+
+		it("throws a 500 error", function () {
+			expect(result.statusCode).to.equal(500);
+		});
 	});
 
 	describe("creating awsAdapter object", function () {
