@@ -55,7 +55,7 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("creating a new instance", function () {
-		var server          = new Hapi.Server();
+		var server = new Hapi.Server();
 		var runInstancesStub;
 
 		var awsAdapter = new AwsAdapter();
@@ -132,7 +132,7 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("fails in creating a new instance", function () {
-		var server          = new Hapi.Server();
+		var server = new Hapi.Server();
 		var runInstancesStub;
 
 		var awsAdapter = new AwsAdapter();
@@ -651,8 +651,9 @@ describe("The Rest plugin", function () {
 
 	describe("updating a created instance", function () {
 
-		var server    = new Hapi.Server();
-		var instances = new InstanceAdapter();
+		var server     = new Hapi.Server();
+		var instances  = new InstanceAdapter();
+		var awsAdapter = new AwsAdapter();
 
 		before(function () {
 
@@ -660,16 +661,19 @@ describe("The Rest plugin", function () {
 			return server.registerAsync({
 				register : Rest,
 				options  : {
-					instances : instances
+					instances  : instances,
+					awsAdapter : awsAdapter
 				}
 			});
 		});
 
 		describe("setting the status of a created instance to terminated", function () {
 
+			var instanceID;
 			var responseCode;
 			var updatedInstance;
-			var instanceID;
+			var terminateInstancesStub;
+
 			before(function () {
 
 				return instances.createInstance()
@@ -678,13 +682,24 @@ describe("The Rest plugin", function () {
 					return instances.getInstance({ id : instance.id });
 				})
 				.then(function (instance) {
+					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "terminated",
+							uri      : instance.uri,
+							revision : instance.revision + 2
+						})
+					);
+
 					updatedInstance = new Instance({
 						id       : instance.id,
 						ami      : instance.ami,
 						type     : instance.type,
 						state    : "terminated",
 						uri      : instance.uri,
-						revision : instance.revision + 1
+						revision : instance.revision + 2
 					});
 					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 					.payload({
@@ -699,6 +714,10 @@ describe("The Rest plugin", function () {
 				.then(function (response) {
 					responseCode = response.statusCode;
 				});
+			});
+
+			after(function () {
+				terminateInstancesStub.restore();
 			});
 
 			it("the status is set to failed", function () {
@@ -720,7 +739,7 @@ describe("The Rest plugin", function () {
 					ami      : "ami-d05e75b8",
 					type     : "t2.micro",
 					uri      : null,
-					state    : "failed",
+					state    : "terminating",
 					revision : 0
 				});
 
@@ -747,7 +766,7 @@ describe("The Rest plugin", function () {
 						ami      : [ "ami-d05e75b8" ],
 						type     : "t2.micro",
 						uri      : null,
-						state    : "failed",
+						state    : "terminating",
 						revision : instance.revision
 					});
 					return request.inject(server);
@@ -765,10 +784,21 @@ describe("The Rest plugin", function () {
 		describe("when two requests are made simultaneously", function () {
 
 			var responses;
+			var terminateInstancesStub;
 
 			before(function () {
 				return instances.createInstance()
 				.then(function (instance) {
+					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "terminated",
+							uri      : instance.uri,
+							revision : instance.revision + 2
+						})
+					);
 					return instances.getInstance({ id : instance.id });
 				})
 				.then(function (instance) {
@@ -777,7 +807,7 @@ describe("The Rest plugin", function () {
 						ami      : instance.ami,
 						type     : instance.type,
 						uri      : null,
-						state    : "running",
+						state    : "terminating",
 						revision : instance.revision
 					});
 
@@ -787,6 +817,10 @@ describe("The Rest plugin", function () {
 					responses = results;
 				});
 
+			});
+
+			after(function () {
+				terminateInstancesStub.restore();
 			});
 
 			it("one succeeds while the other fails", function () {
@@ -801,7 +835,6 @@ describe("The Rest plugin", function () {
 
 	describe("update when the connection to the database fails", function () {
 
-		var updatedInstance;
 		var result;
 		var updateStub;
 		var server    = new Hapi.Server();
@@ -821,20 +854,12 @@ describe("The Rest plugin", function () {
 				return instances.getInstance({ id : instance.id });
 			})
 			.then(function (instance) {
-				updatedInstance = new Instance({
-					id       : instance.id,
-					ami      : instance.ami,
-					type     : instance.type,
-					state    : "failed",
-					uri      : instance.uri,
-					revision : instance.revision + 1
-				});
 				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 				.payload({
 					ami      : instance.ami,
 					type     : instance.type,
 					uri      : instance.uri,
-					state    : "failed",
+					state    : "terminating",
 					revision : instance.revision
 				});
 				return request.inject(server);
@@ -850,6 +875,53 @@ describe("The Rest plugin", function () {
 
 		it("throws a 500 error", function () {
 			expect(result.statusCode).to.equal(500);
+		});
+
+		describe("setting the status of a created instance to a state not handled by update", function () {
+
+			var instanceID;
+			var responseCode;
+			var originalInstance;
+
+			before(function () {
+
+				return instances.createInstance()
+				.then(function (instance) {
+					instanceID = instance.id;
+					return instances.getInstance({ id : instance.id });
+				})
+				.then(function (instance) {
+					originalInstance = {
+						id       : instance.id,
+						ami      : instance.ami,
+						type     : instance.type,
+						uri      : instance.uri,
+						state    : instance.state,
+						revision : instance.revision
+					};
+
+					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami      : instance.ami,
+						type     : instance.type,
+						uri      : instance.uri,
+						state    : "failed",
+						revision : instance.revision
+					});
+					return request.inject(server);
+				})
+				.then(function (response) {
+					responseCode = response.statusCode;
+				});
+			});
+
+			it("throws an error", function () {
+				return instances.getInstance({ id : instanceID })
+				.then(function (response) {
+					expect(responseCode).to.equal(400);
+					expect(response).to.deep.equal(originalInstance);
+				});
+			});
 		});
 
 	});

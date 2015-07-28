@@ -20,6 +20,8 @@ describe("The AwsAdapter class ", function () {
 	var INVALID_TYPE       = "t2.invalid";
 	var VALID_EC2_INSTANCE = "i-9444c16a";
 	var VALID_IP_ADDRESS   = "127.0.0.1";
+	var VALID_AWS_ID       = "i-1234567";
+	var VALID_ID           = "da14fbf2-5404-4f92-b55f-a961578204ed";
 
 	var VALID_INSTANCE = {
 		ami  : DEFAULT_AMI,
@@ -455,4 +457,42 @@ describe("The AwsAdapter class ", function () {
 			});
 		});
 	});
+
+	describe("terminating an instance", function () {
+		var describeInstancesStub;
+		var terminateInstancesStub;
+		var waitForStub;
+		var result;
+		var awsAdapter = new AwsAdapter(ec2);
+
+		before(function () {
+			describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
+				var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
+				return Bluebird.resolve(data);
+			});
+
+			terminateInstancesStub = Sinon.stub(ec2, "terminateInstancesAsync", function () {
+				var data = { TerminatingInstances : [ { InstanceId : VALID_AWS_ID } ] };
+				return Bluebird.resolve(data);
+			});
+
+			waitForStub = Sinon.stub(ec2, "waitForAsync", function () {
+				var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
+				return Bluebird.resolve(data);
+			});
+
+			awsAdapter.terminateInstances(VALID_ID)
+			.then(function (response) {
+				result = response;
+			});
+			terminateInstancesStub.restore();
+			waitForStub.restore();
+		});
+
+		it("sets the state to terminating", function () {
+			console.log(result);
+		});
+
+	});
 });
+
