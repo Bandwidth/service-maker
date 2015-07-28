@@ -6,9 +6,11 @@ var Hapi            = require("hapi");
 var Rest            = require("../../../lib/plugins/rest");
 var MemoryMapper    = require("genesis").MemoryMapper;
 var expect          = require("chai").expect;
-var InstanceAdapter = require("../../../lib/services/instanceAdapter.js");
+var InstanceAdapter = require("../../../lib/services/instanceAdapter");
+var Instance        = require("../../../lib/models/Instance");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var Sinon           = require("sinon");
+var _               = require("lodash");
 
 require("sinon-as-promised");
 
@@ -646,4 +648,210 @@ describe("The Rest plugin", function () {
 			});
 		});
 	});
+
+	describe("updating a created instance", function () {
+
+		var server    = new Hapi.Server();
+		var instances = new InstanceAdapter();
+
+		before(function () {
+
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					instances : instances
+				}
+			});
+		});
+
+		describe("setting the status of a created instance to failed", function () {
+
+			var responseCode;
+			var updatedInstance;
+			var instanceID;
+			before(function () {
+
+				return instances.createInstance()
+				.then(function (instance) {
+					instanceID = instance.id;
+					return instances.getInstance({ id : instance.id });
+				})
+				.then(function (instance) {
+					updatedInstance = new Instance({
+						id       : instance.id,
+						ami      : instance.ami,
+						type     : instance.type,
+						state    : "failed",
+						uri      : instance.uri,
+						revision : instance.revision + 1
+					});
+					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami      : instance.ami,
+						type     : instance.type,
+						uri      : instance.uri,
+						state    : "failed",
+						revision : instance.revision
+					});
+					return request.inject(server);
+				})
+				.then(function (response) {
+					responseCode = response.statusCode;
+				});
+			});
+
+			it("the status is set to failed", function () {
+				return instances.getInstance({ id : instanceID })
+				.then(function (response) {
+					expect(response).to.deep.equal(updatedInstance);
+					expect(responseCode).to.equal(200);
+				});
+			});
+		});
+
+		describe("when the instance ID doesn't exist", function () {
+
+			var result;
+
+			before(function () {
+				var request = new Request("PUT", "/v1/instances/" + INVALID_QUERY).mime("application/json")
+				.payload({
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					uri      : null,
+					state    : "failed",
+					revision : 0
+				});
+
+				return request.inject(server)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			it("a 404 error is thrown", function () {
+				expect(result.statusCode).to.equal(404);
+			});
+		});
+
+		describe("when the payload is malformed", function () {
+
+			var result;
+
+			before(function () {
+				return instances.createInstance()
+				.then(function (instance) {
+					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami      : [ "ami-d05e75b8" ],
+						type     : "t2.micro",
+						uri      : null,
+						state    : "failed",
+						revision : instance.revision
+					});
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			it("a 400 error is thrown", function () {
+				expect(result.statusCode).to.equal(400);
+			});
+		});
+
+		describe("when two requests are made simultaneously", function () {
+
+			var responses;
+
+			before(function () {
+				return instances.createInstance()
+				.then(function (instance) {
+					return instances.getInstance({ id : instance.id });
+				})
+				.then(function (instance) {
+					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami      : instance.ami,
+						type     : instance.type,
+						uri      : null,
+						state    : "ready",
+						revision : instance.revision
+					});
+
+					return Bluebird.join(request.inject(server), request.inject(server));
+				})
+				.then(function (results) {
+					responses = results;
+				});
+
+			});
+
+			it("one succeeds while the other fails", function () {
+				var failed = _.some(responses, function (responses) {
+					return responses.statusCode === 409;
+				});
+
+				expect (failed, "concurrency").to.be.true;
+			});
+		});
+	});
+
+	describe("update when the connection to the database fails", function () {
+
+		var updatedInstance;
+		var result;
+		var updateStub;
+		var server    = new Hapi.Server();
+		var instances = new InstanceAdapter();
+
+		before(function () {
+			updateStub = Sinon.stub(instances, "updateInstance").rejects(new Error("Simulated Failure."));
+			server.connection();
+			server.registerAsync({
+				register : Rest,
+				options  : {
+					instances : instances
+				}
+			});
+			return instances.createInstance()
+			.then(function (instance) {
+				return instances.getInstance({ id : instance.id });
+			})
+			.then(function (instance) {
+				updatedInstance = new Instance({
+					id       : instance.id,
+					ami      : instance.ami,
+					type     : instance.type,
+					state    : "failed",
+					uri      : instance.uri,
+					revision : instance.revision + 1
+				});
+				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+				.payload({
+					ami      : instance.ami,
+					type     : instance.type,
+					uri      : instance.uri,
+					state    : "failed",
+					revision : instance.revision
+				});
+				return request.inject(server);
+			})
+			.then(function (response) {
+				result = response.result;
+			});
+		});
+
+		after(function () {
+			updateStub.restore();
+		});
+
+		it("throws a 500 error", function () {
+			expect(result.statusCode).to.equal(500);
+		});
+
+	});
+
 });
