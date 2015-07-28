@@ -40,12 +40,14 @@ describe("The AwsAdapter class ", function () {
 			//This is an empty block which mocks server.log function
 	};
 
-	var awsOptions = { serverLog : serverLog };
+	var instances  = new InstanceAdapter();
+
+	var awsOptions = { serverLog : serverLog, ec2 : ec2, instances : instances };
 
 	describe("trying to create a new instance", function () {
 		var createTagsStub;
 		var result;
-		var awsAdapter = new AwsAdapter(ec2, awsOptions);
+		var awsAdapter = new AwsAdapter(awsOptions);
 
 		before(function () {
 			createTagsStub = Sinon.stub(ec2, "createTagsAsync", function () {
@@ -167,7 +169,7 @@ describe("The AwsAdapter class ", function () {
 		var describeInstancesStub;
 		var result;
 		before(function () {
-			var awsAdapter = new AwsAdapter(ec2, awsOptions);
+			var awsAdapter = new AwsAdapter(awsOptions);
 			describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
 				var data = { Reservations : [ { Instances : [ { PublicIpAddress : "127.0.0.1" } ] } ] };
 				return Bluebird.resolve(data);
@@ -193,7 +195,7 @@ describe("The AwsAdapter class ", function () {
 		var describeInstancesStub;
 		var result;
 		before(function () {
-			var awsAdapter = new AwsAdapter(ec2, awsOptions);
+			var awsAdapter = new AwsAdapter(awsOptions);
 			describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
 				return Bluebird.reject(new Error("Instance not Found"));
 			});
@@ -218,7 +220,7 @@ describe("The AwsAdapter class ", function () {
 		var describeInstancesStub;
 
 		before(function () {
-			var awsAdapter = new AwsAdapter(ec2, awsOptions);
+			var awsAdapter = new AwsAdapter(awsOptions);
 			describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
 				var data = { Reservations : [ { Instances : [ { PublicIpAddress : "127.0.0.1" } ] } ] };
 				return Bluebird.resolve(data);
@@ -246,12 +248,10 @@ describe("The AwsAdapter class ", function () {
 	describe("begins Polling", function () {
 
 		var sshAdapter = new SshAdapter(ec2);
-		var instances  = new InstanceAdapter();
 
 		awsOptions.sshAdapter = sshAdapter;
-		awsOptions.instances = instances;
 
-		var awsAdapter = new AwsAdapter(ec2, awsOptions);
+		var awsAdapter = new AwsAdapter(awsOptions);
 
 		describe("and gets IP address of instance", function () {
 			var SshPollingStub;
@@ -361,6 +361,51 @@ describe("The AwsAdapter class ", function () {
 
 				expect(result).to.be.an.instanceof(Error);
 				expect(result.message).to.be.equal("Simulated Failure.");
+			});
+		});
+	});
+
+	describe("Trying to create awsAdapter Instance", function () {
+
+		describe("with missing parameters", function () {
+			var awsAdapter;
+			var result;
+			var options = {};
+			options.ec2 = ec2;
+			before(function () {
+				try {
+					awsAdapter = new AwsAdapter(options);
+				}
+				catch (err) {
+					result = err;
+				}
+
+			});
+
+			it("fails to create an object", function () {
+				expect(awsAdapter).to.be.undefined;
+				expect(result).to.be.an.instanceof(Error);
+			});
+		});
+
+		describe("with invalid parameters", function () {
+			var awsAdapter;
+			var result;
+			var options = {};
+			options.instances = "thisIswrong";
+			before(function () {
+				try {
+					awsAdapter = new AwsAdapter(options);
+				}
+				catch (err) {
+					result = err;
+				}
+
+			});
+
+			it("fails to create an object", function () {
+				expect(awsAdapter).to.be.undefined;
+				expect(result).to.be.an.instanceof(Error);
 			});
 		});
 	});

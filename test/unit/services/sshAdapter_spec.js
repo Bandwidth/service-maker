@@ -279,7 +279,7 @@ describe("The SSH Adapter Class", function () {
 					return Bluebird.resolve();
 				});
 
-				sshAdapter.SshPolling(id)
+				return sshAdapter.SshPolling(id)
 				.catch(function (err) {
 					result = err;
 				});
