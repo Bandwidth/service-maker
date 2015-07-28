@@ -1,5 +1,6 @@
 "use strict";
 
+<<<<<<< HEAD
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var expect          = require("chai").expect;
 var Bluebird        = require("bluebird");
@@ -10,10 +11,18 @@ var InstanceAdapter = require("../../../lib/services/instanceAdapter");
 var ec2             = new AWS.EC2();
 
 Bluebird.promisifyAll(ec2);
+=======
+var AwsAdapter = require("../../../lib/services/awsAdapter");
+var expect     = require("chai").expect;
+var Bluebird   = require("bluebird");
+var Sinon      = require("sinon");
+var AWS        = require("aws-sdk");
+>>>>>>> Made requested changes.
 
 require("sinon-as-promised")(Bluebird);
 
 describe("The AwsAdapter class ", function () {
+<<<<<<< HEAD
 	var DEFAULT_AMI        = "ami-d05e75b8";
 	var DEFAULT_TYPE       = "t2.micro";
 	var INVALID_AMI        = "ami-invalid";
@@ -22,6 +31,17 @@ describe("The AwsAdapter class ", function () {
 	var VALID_IP_ADDRESS   = "127.0.0.1";
 	var VALID_AWS_ID       = "i-1234567";
 	var VALID_ID           = "da14fbf2-5404-4f92-b55f-a961578204ed";
+=======
+	var ec2 = new AWS.EC2();
+	Bluebird.promisifyAll(ec2);
+
+	var DEFAULT_AMI  = "ami-d05e75b8";
+	var DEFAULT_TYPE = "t2.micro";
+	var INVALID_AMI  = "ami-invalid";
+	var INVALID_TYPE = "t2.invalid";
+	var VALID_AWS_ID = "i-1234567";
+	var VALID_ID     = "da14fbf2-5404-4f92-b55f-a961578204ed";
+>>>>>>> Made requested changes.
 
 	var VALID_INSTANCE = {
 		ami  : DEFAULT_AMI,
@@ -521,14 +541,8 @@ describe("The AwsAdapter class ", function () {
 
 			before(function () {
 				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
-					var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
+					var data = { Reservations : [ { Instances : [ ] } ] };
 					return Bluebird.resolve(data);
-				});
-
-				terminateInstancesStub = Sinon.stub(ec2, "terminateInstancesAsync", function () {
-					var error = new Error("InvalidInstanceID.NotFound");
-					error.message = "The instance ID 'i-1234567' does not exist";
-					return Bluebird.reject(error);
 				});
 
 				return awsAdapter.terminateInstances(VALID_ID)
@@ -546,7 +560,7 @@ describe("The AwsAdapter class ", function () {
 			it("throws an error", function () {
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
-				expect(result.message).to.contain("not exist");
+				expect(result).to.match(/TypeError/);
 			});
 
 		});

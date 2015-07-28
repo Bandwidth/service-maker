@@ -679,16 +679,13 @@ describe("The Rest plugin", function () {
 				return instances.createInstance()
 				.then(function (instance) {
 					instanceID = instance.id;
-					return instances.getInstance({ id : instance.id });
-				})
-				.then(function (instance) {
 					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
 						Bluebird.resolve({
 							id       : instance.id,
 							ami      : instance.ami,
 							type     : instance.type,
 							state    : "terminated",
-							uri      : instance.uri,
+							uri      : null,
 							revision : instance.revision + 2
 						})
 					);
@@ -698,7 +695,7 @@ describe("The Rest plugin", function () {
 						ami      : instance.ami,
 						type     : instance.type,
 						state    : "terminated",
-						uri      : instance.uri,
+						uri      : null,
 						revision : instance.revision + 2
 					});
 					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
@@ -723,7 +720,12 @@ describe("The Rest plugin", function () {
 			it("the status is set to terminated", function () {
 				return instances.getInstance({ id : instanceID })
 				.then(function (response) {
-					expect(response).to.deep.equal(updatedInstance);
+					expect(response.id).to.equal(updatedInstance.id);
+					expect(response.ami).to.equal(updatedInstance.ami);
+					expect(response.type).to.equal(updatedInstance.type);
+					expect(response.state).to.equal(updatedInstance.state);
+					expect(response.uri).to.equal(updatedInstance.uri);
+					expect(response.revision).to.be.above(1);
 					expect(responseCode).to.equal(200);
 				});
 			});
@@ -843,17 +845,7 @@ describe("The Rest plugin", function () {
 				return instances.createInstance()
 				.then(function (instance) {
 					instanceID = instance.id;
-					return instances.getInstance({ id : instance.id });
-				})
-				.then(function (instance) {
-					originalInstance = {
-						id       : instance.id,
-						ami      : instance.ami,
-						type     : instance.type,
-						uri      : instance.uri,
-						state    : instance.state,
-						revision : instance.revision
-					};
+					originalInstance = instance;
 
 					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 					.payload({
@@ -871,9 +863,12 @@ describe("The Rest plugin", function () {
 			});
 
 			it("throws an error", function () {
+				expect(responseCode).to.equal(400);
+			});
+
+			it("leaves the instance unmodified", function () {
 				return instances.getInstance({ id : instanceID })
 				.then(function (response) {
-					expect(responseCode).to.equal(400);
 					expect(response).to.deep.equal(originalInstance);
 				});
 			});
@@ -883,10 +878,11 @@ describe("The Rest plugin", function () {
 
 			var terminateInstancesStub;
 			var instanceID;
+			var response;
 
 			before(function () {
 				terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").rejects(new Error("AWS Error"));
-				instances.createInstance()
+				return instances.createInstance()
 				.then(function (instance) {
 					instanceID = instance.id;
 					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
@@ -898,11 +894,20 @@ describe("The Rest plugin", function () {
 						revision : instance.revision
 					});
 					return request.inject(server);
+				})
+				.then(function (result) {
+					response = result;
 				});
 			});
 
 			after(function () {
 				terminateInstancesStub.restore();
+			});
+
+			it("returns the instance with state set to terminating", function () {
+				expect(response.result.id).to.equal(instanceID);
+				expect(response.result.state).to.equal("terminating");
+				expect(response.statusCode).to.equal(200);
 			});
 
 			it("returns the instance with state set to failed", function () {
