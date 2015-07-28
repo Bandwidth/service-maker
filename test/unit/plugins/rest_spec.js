@@ -878,6 +878,44 @@ describe("The Rest plugin", function () {
 				});
 			});
 		});
+
+		describe("when there is an AWS error", function () {
+
+			var terminateInstancesStub;
+			var instanceID;
+
+			before(function () {
+				terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").rejects(new Error("AWS Error"));
+				instances.createInstance()
+				.then(function (instance) {
+					instanceID = instance.id;
+					var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+					.payload({
+						ami      : instance.ami,
+						type     : instance.type,
+						uri      : instance.uri,
+						state    : "terminating",
+						revision : instance.revision
+					});
+					return request.inject(server);
+				});
+			});
+
+			after(function () {
+				terminateInstancesStub.restore();
+			});
+
+			it("returns the instance with state set to failed", function () {
+				return instances.getInstance({ id : instanceID })
+				.then(function (response) {
+					expect(response.id).to.equal(instanceID);
+					expect(response.state).to.equal("failed");
+					expect(response.uri).to.equal(null);
+				});
+
+			});
+		});
+
 	});
 
 	describe("update when the connection to the database fails", function () {
@@ -888,7 +926,7 @@ describe("The Rest plugin", function () {
 		var instances = new InstanceAdapter();
 
 		before(function () {
-			updateStub = Sinon.stub(instances, "updateInstance").rejects(new Error("Simulated Failure."));
+			updateStub = Sinon.stub(instances, "updateInstance").rejects(new Error("Connection to database failed."));
 			server.connection();
 			server.registerAsync({
 				register : Rest,

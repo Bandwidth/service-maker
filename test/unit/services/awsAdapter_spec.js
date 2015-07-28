@@ -466,7 +466,7 @@ describe("The AwsAdapter class ", function () {
 
 		describe("when the instance is running", function () {
 			var result;
-			var awsAdapter = new AwsAdapter(ec2);
+			var awsAdapter = new AwsAdapter(awsOptions);
 
 			before(function () {
 				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
@@ -491,7 +491,6 @@ describe("The AwsAdapter class ", function () {
 				.then(function (response) {
 					result = response;
 				});
-
 			});
 
 			after(function () {
@@ -500,7 +499,7 @@ describe("The AwsAdapter class ", function () {
 				waitForStub.restore();
 			});
 
-			it("terminates the instance, sets the state on the AWS console to terminated", function () {
+			it("terminates the instance and sets the state to terminated", function () {
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
 
@@ -513,18 +512,23 @@ describe("The AwsAdapter class ", function () {
 				expect(result.Reservations[ 0 ].Instances[ 0 ].InstanceId).to.equal(VALID_AWS_ID);
 				expect(result.Reservations[ 0 ].Instances[ 0 ].state).to.equal("terminated");
 			});
-
 		});
 
 		describe("when the instance has already been terminated (doesn't exist)", function () {
 
 			var result;
-			var awsAdapter = new AwsAdapter(ec2);
+			var awsAdapter = new AwsAdapter(awsOptions);
 
 			before(function () {
 				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
-					var data = { Reservations : [ { Instances : [ ] } ] };
+					var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
 					return Bluebird.resolve(data);
+				});
+
+				terminateInstancesStub = Sinon.stub(ec2, "terminateInstancesAsync", function () {
+					var error = new Error("InvalidInstanceID.NotFound");
+					error.message = "The instance ID 'i-1234567' does not exist";
+					return Bluebird.reject(error);
 				});
 
 				return awsAdapter.terminateInstances(VALID_ID)
@@ -542,14 +546,14 @@ describe("The AwsAdapter class ", function () {
 			it("throws an error", function () {
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
-				expect(result).to.match(/TypeError/);
+				expect(result.message).to.contain("not exist");
 			});
 
 		});
 
 		describe("when waitFor times out", function () {
 			var result;
-			var awsAdapter = new AwsAdapter(ec2);
+			var awsAdapter = new AwsAdapter(awsOptions);
 
 			before(function () {
 				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
