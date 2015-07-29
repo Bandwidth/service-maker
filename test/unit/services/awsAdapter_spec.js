@@ -293,6 +293,47 @@ describe("The AwsAdapter class ", function () {
 			});
 		});
 
+		describe("and faces error while updating the instance", function () {
+			var SshPollingStub;
+			var getPublicIPAddressStub;
+			var updateInstanceStub;
+			var instanceProp;
+			var result;
+
+			before(function () {
+				SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
+					return Bluebird.resolve();
+				});
+
+				getPublicIPAddressStub = Sinon.stub(awsAdapter,"getPublicIPAddress", function () {
+					return Bluebird.resolve(VALID_IP_ADDRESS);
+				});
+
+				updateInstanceStub = Sinon.stub(instances, "updateInstance").rejects(new Error("Simulated Failure."));
+
+				return instances.createInstance("ami-d05e75b8","t2.micro")
+				.then(function (data) {
+					instanceProp  = JSON.parse(JSON.stringify(data));
+					instanceProp.instanceID = VALID_EC2_INSTANCE;
+					return awsAdapter.beginPolling(instanceProp);
+				})
+				.catch(function (error) {
+					result = error;
+				});
+			});
+
+			after(function () {
+				SshPollingStub.restore();
+				getPublicIPAddressStub.restore();
+				updateInstanceStub.restore();
+			});
+
+			it("updates the state and uri of the instance", function () {
+				expect(result).to.be.an.instanceof(Error);
+				expect(result.message).to.be.equal("Simulated Failure.");
+			});
+		});
+
 		describe("and faces an error while polling", function () {
 			var SshPollingStub;
 			var instanceProp;
@@ -371,7 +412,7 @@ describe("The AwsAdapter class ", function () {
 			var awsAdapter;
 			var result;
 			var options = {};
-			options.ec2 = ec2;
+			options.serverLog = function () { };
 			before(function () {
 				try {
 					awsAdapter = new AwsAdapter(options);
@@ -385,6 +426,7 @@ describe("The AwsAdapter class ", function () {
 			it("fails to create an object", function () {
 				expect(awsAdapter).to.be.undefined;
 				expect(result).to.be.an.instanceof(Error);
+				expect(result.message).to.equal("child \"sshAdapter\" fails because [\"sshAdapter\" is required]");
 			});
 		});
 
@@ -392,7 +434,10 @@ describe("The AwsAdapter class ", function () {
 			var awsAdapter;
 			var result;
 			var options = {};
+			options.sshAdapter = new SshAdapter(ec2);
 			options.instances = "thisIswrong";
+			options.ec2 = ec2;
+			options.serverLog = function () { };
 			before(function () {
 				try {
 					awsAdapter = new AwsAdapter(options);
@@ -406,6 +451,7 @@ describe("The AwsAdapter class ", function () {
 			it("fails to create an object", function () {
 				expect(awsAdapter).to.be.undefined;
 				expect(result).to.be.an.instanceof(Error);
+				expect(result.message).to.equal("child \"instances\" fails because [\"instances\" must be an object]");
 			});
 		});
 	});
