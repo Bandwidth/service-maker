@@ -967,6 +967,64 @@ describe("The Rest plugin", function () {
 			expect(result.statusCode).to.equal(500);
 		});
 	});
+	describe("when the database fails after terminateInstances has run", function () {
+
+		var result;
+		var getStub;
+		var terminateInstancesStub;
+		var server     = new Hapi.Server();
+		var instances  = new InstanceAdapter();
+		var awsAdapter = new AwsAdapter();
+		before(function () {
+
+			return instances.createInstance()
+			.then(function (instance) {
+				getStub = Sinon.stub(instances, "getInstance").rejects(new Error("Connection to the database fails."));
+
+				terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
+					Bluebird.resolve({
+						id       : instance.id,
+						ami      : instance.ami,
+						type     : instance.type,
+						state    : "terminated",
+						uri      : instance.uri,
+						revision : instance.revision + 2
+					})
+				);
+
+				server.connection();
+				server.registerAsync({
+					register : Rest,
+					options  : {
+						instances  : instances,
+						awsAdapter : awsAdapter
+					}
+				});
+
+				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+				.payload({
+					ami      : instance.ami,
+					type     : instance.type,
+					uri      : instance.uri,
+					state    : "terminating",
+					revision : instance.revision
+				});
+				return request.inject(server);
+			})
+			.then(function (response) {
+				result = response.result;
+			});
+		});
+
+		after(function () {
+			terminateInstancesStub.restore();
+			getStub.restore();
+		});
+
+		it("logs the error and state remains terminating", function () {
+			expect(result.state).to.equal("terminating");
+		});
+	});
 
 	describe("creating awsAdapter object", function () {
 		var server     = new Hapi.Server();
