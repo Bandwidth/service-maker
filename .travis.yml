@@ -1,6 +1,14 @@
 language: node_js
 node_js:
-  - "0.12"
+- '0.12'
 branches:
   only:
   - v1.0
+deploy:
+  provider: heroku
+  api_key:
+    secure: ZROJUvwA1+KIobKEvj0yseC7RHjLZogGSFjuWiQFUAqVIrZ9wjWFQL7cT/WpwZJkYPEVTKpieNFoFabcJ8+/ubvP9CBEft0VCoc260eJGcNCzuFkM8T97hRt0z9ZvigIpATIDyqVOY16/bCXGxrczRSPiRxTbfiayVYnNHbNNQFHNol79bJjvSkFhfk87l39lQGgNFArbV1byEgXrlm654o2/0sHW1+50ShvERLD5OzB3r51fkn5q3x5N6kExVlT9wQkToc20WssG2sC/SFUjwaVfQilfzmu5olcdbHPxxbypyeC+Xf0S3eGxkJxYDU3jsiI3V4ES/zBkzofV6V6OuGxS0uJDIBQlFeRr1TcjswyAm+uyeQKir5whHg3G/P8kSMwYROerEwXxSLAZxmBDhI9L6l/L86aySp1NEKoUG/ACYjC2Yx45gRJVtnPAan0EtHxz8zZMeUK6y1+0OsA5KkgFHTpEBiVSHG1d1wAJ6i0/smrzd8hLULmaAfB2FiGDMZCCXn8lXPaLE4wIwiCVa2uBR/DZeaYSXHTobgOfeUSzROmN8V6IUOyun952n1Hq9XncjBTIs4Y7jq15ng2btmk9pa0qOIN58UMmaZdpXMG0p9Vl4Vvt4RAr7CrAS07hMjvgkr5a+QZKj+3mLwn5lju6dc1JLhQZsiBTo5N4v8=
+  app: service-maker
+  on:
+    repo: trueblue2704/service-maker
+    branch: v1.0
