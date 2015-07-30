@@ -1037,13 +1037,14 @@ describe("The Rest plugin", function () {
 		});
 
 		it("leaves the state unchanged(terminating)", function () {
+			expect(updateStub.callCount).to.equal(2);
 			expect(result.state).to.equal("terminating");
 		});
 	});
 
 	describe("when the database and terminateInstances fail", function () {
 
-		var result;
+		var response;
 		var getStub;
 		var terminateInstancesStub;
 		var server     = new Hapi.Server();
@@ -1076,8 +1077,8 @@ describe("The Rest plugin", function () {
 				});
 				return request.inject(server);
 			})
-			.then(function (response) {
-				result = response.result;
+			.then(function (result) {
+				response = result;
 			});
 		});
 
@@ -1087,7 +1088,8 @@ describe("The Rest plugin", function () {
 		});
 
 		it("leaves the state unchanged(terminating)", function () {
-			expect(result.state).to.equal("terminating");
+			expect(response.result.state).to.equal("terminating");
+			expect(response.statusCode).to.equal(200);
 		});
 	});
 
