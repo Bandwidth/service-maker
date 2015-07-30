@@ -874,13 +874,9 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		after(function () {
-			return server.stopAsync();
-		});
-
 		it("fails", function () {
 			expect(result).to.be.an.instanceof(Error);
-			expect(result.message).to.equal("child \"instances\" fails because [\"instances\" must be an object]");
+			expect(result.message).to.contain("child \"instances\" fails");
 		});
 	});
 });

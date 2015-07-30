@@ -328,7 +328,7 @@ describe("The AwsAdapter class ", function () {
 				updateInstanceStub.restore();
 			});
 
-			it("updates the state and uri of the instance", function () {
+			it("throws an error", function () {
 				expect(result).to.be.an.instanceof(Error);
 				expect(result.message).to.be.equal("Simulated Failure.");
 			});
@@ -426,7 +426,7 @@ describe("The AwsAdapter class ", function () {
 			it("fails to create an object", function () {
 				expect(awsAdapter).to.be.undefined;
 				expect(result).to.be.an.instanceof(Error);
-				expect(result.message).to.equal("child \"sshAdapter\" fails because [\"sshAdapter\" is required]");
+				expect(result.message).to.contain("child \"sshAdapter\" fails");
 			});
 		});
 
@@ -451,7 +451,7 @@ describe("The AwsAdapter class ", function () {
 			it("fails to create an object", function () {
 				expect(awsAdapter).to.be.undefined;
 				expect(result).to.be.an.instanceof(Error);
-				expect(result.message).to.equal("child \"instances\" fails because [\"instances\" must be an object]");
+				expect(result.message).to.contain("child \"instances\" fails");
 			});
 		});
 	});
