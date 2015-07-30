@@ -670,6 +670,7 @@ describe("The Rest plugin", function () {
 		describe("setting the status of a created instance to terminated", function () {
 
 			var instanceID;
+			var revision;
 			var responseCode;
 			var updatedInstance;
 			var terminateInstancesStub;
@@ -679,6 +680,8 @@ describe("The Rest plugin", function () {
 				return instances.createInstance()
 				.then(function (instance) {
 					instanceID = instance.id;
+					revision   = instance.revision;
+					//revision reflects the document is updated twice when terminateInstances() is successful.
 					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
 						Bluebird.resolve({
 							id       : instance.id,
@@ -725,7 +728,7 @@ describe("The Rest plugin", function () {
 					expect(response.type).to.equal(updatedInstance.type);
 					expect(response.state).to.equal(updatedInstance.state);
 					expect(response.uri).to.equal(updatedInstance.uri);
-					expect(response.revision).to.be.above(1);
+					expect(response.revision).to.be.above(revision);
 					expect(responseCode).to.equal(200);
 				});
 			});
@@ -791,6 +794,7 @@ describe("The Rest plugin", function () {
 			before(function () {
 				return instances.createInstance()
 				.then(function (instance) {
+					//revision reflects the document is updated twice when terminateInstances() is successful.
 					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
 						Bluebird.resolve({
 							id       : instance.id,
@@ -970,7 +974,7 @@ describe("The Rest plugin", function () {
 	describe("when the database fails after terminateInstances has run", function () {
 
 		var result;
-		var getStub;
+		var updateStub;
 		var terminateInstancesStub;
 		var server     = new Hapi.Server();
 		var instances  = new InstanceAdapter();
@@ -979,8 +983,19 @@ describe("The Rest plugin", function () {
 
 			return instances.createInstance()
 			.then(function (instance) {
-				getStub = Sinon.stub(instances, "getInstance").rejects(new Error("Connection to the database fails."));
+				updateStub = Sinon.stub(instances, "updateInstance").returns(
+					Bluebird.resolve({
+						id       : instance.id,
+						ami      : instance.ami,
+						type     : instance.type,
+						state    : "terminating",
+						uri      : instance.uri,
+						revision : instance.revision + 1
+					})
+				);
+				updateStub.onCall(1).rejects(new Error("Connection to the database fails."));
 
+				//revision reflects the document is updated twice when terminateInstances() is successful.
 				terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
 					Bluebird.resolve({
 						id       : instance.id,
@@ -1018,10 +1033,60 @@ describe("The Rest plugin", function () {
 
 		after(function () {
 			terminateInstancesStub.restore();
+			updateStub.restore();
+		});
+
+		it("leaves the state unchanged(terminating)", function () {
+			expect(result.state).to.equal("terminating");
+		});
+	});
+
+	describe("when the database and terminateInstances fail", function () {
+
+		var result;
+		var getStub;
+		var terminateInstancesStub;
+		var server     = new Hapi.Server();
+		var instances  = new InstanceAdapter();
+		var awsAdapter = new AwsAdapter();
+		before(function () {
+
+			return instances.createInstance()
+			.then(function (instance) {
+				getStub = Sinon.stub(instances, "getInstance").rejects(new Error("Connection to the database fails."));
+				terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances")
+				.rejects(new Error("AWS Error"));
+
+				server.connection();
+				server.registerAsync({
+					register : Rest,
+					options  : {
+						instances  : instances,
+						awsAdapter : awsAdapter
+					}
+				});
+
+				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+				.payload({
+					ami      : instance.ami,
+					type     : instance.type,
+					uri      : instance.uri,
+					state    : "terminating",
+					revision : instance.revision
+				});
+				return request.inject(server);
+			})
+			.then(function (response) {
+				result = response.result;
+			});
+		});
+
+		after(function () {
+			terminateInstancesStub.restore();
 			getStub.restore();
 		});
 
-		it("logs the error and state remains terminating", function () {
+		it("leaves the state unchanged(terminating)", function () {
 			expect(result.state).to.equal("terminating");
 		});
 	});

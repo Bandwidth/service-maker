@@ -540,10 +540,8 @@ describe("The AwsAdapter class ", function () {
 			var awsAdapter = new AwsAdapter(awsOptions);
 
 			before(function () {
-				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
-					var data = { Reservations : [ { Instances : [ ] } ] };
-					return Bluebird.resolve(data);
-				});
+				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync")
+				.rejects(new Error("InvalidInstance.NotFound"));
 
 				return awsAdapter.terminateInstances(VALID_ID)
 				.catch(function (error) {
@@ -560,7 +558,7 @@ describe("The AwsAdapter class ", function () {
 			it("throws an error", function () {
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
-				expect(result).to.match(/TypeError/);
+				expect(result).to.match(/InvalidInstance.NotFound/);
 			});
 
 		});
