@@ -1,6 +1,14 @@
 language: node_js
 node_js:
-  - "0.12"
+- '0.12'
 branches:
   only:
   - v1.0
+deploy:
+  provider: heroku
+  api_key:
+    secure: OlTY+cQPcLvR5g04n/4VUb2USAxsbpn7CFfQtVc6QK8CZvfOn3A0yQd3rM6HHrctSw8K7ig39hCDA1NNcj4askovIlvs/5vqRMCzbF9477P0OxFVGQ5Ui4nuJPZB0eQl14/32TvU1ByQ2TI0889fVUYCnO8y3O3gD12SKmUczok=
+  app: service-maker-demo
+  on:
+    repo: inetCatapult/service-maker
+    branch: v1.0

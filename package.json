@@ -3,6 +3,9 @@
   "version": "2.0.0",
   "description": "Deploy imaged EC2 instances quickly and simply.",
   "main": "lib/server.js",
+  "engines": {
+    "node": "^0.12"
+  },
   "scripts": {
     "test": "grunt",
     "start": "node lib/server.js"
