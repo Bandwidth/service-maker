@@ -854,4 +854,29 @@ describe("The Rest plugin", function () {
 
 	});
 
+	describe("creating awsAdapter object", function () {
+		var server     = new Hapi.Server();
+		var awsAdapter = {};
+		var result;
+		awsAdapter.serverLog = function () { };
+
+		before(function () {
+
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					instances : "wrongthing"
+				}
+			})
+			.catch(function (err) {
+				result = err;
+			});
+		});
+
+		it("fails", function () {
+			expect(result).to.be.an.instanceof(Error);
+			expect(result.message).to.contain("child \"instances\" fails");
+		});
+	});
 });

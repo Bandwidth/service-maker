@@ -244,5 +244,4 @@ describe("The InstanceAdapter class ", function () {
 			});
 		});
 	});
-
 });
