@@ -106,7 +106,7 @@ describe("The AwsAdapter class ", function () {
 				authorizeSecurityGroupIngressStub.restore();
 			});
 
-			it("returns a new instance with the ami and type provided", function () {
+			it("creates the security group and returns a new instance with the ami and type provided", function () {
 
 				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
 
@@ -183,7 +183,7 @@ describe("The AwsAdapter class ", function () {
 			});
 		});
 
-		describe("with a security group name that already exists", function () {
+		describe("when an error occurs with creating the security group", function () {
 
 			var runInstancesStub;
 			var beginPollingStub;
@@ -225,7 +225,7 @@ describe("The AwsAdapter class ", function () {
 				authorizeSecurityGroupIngressStub.restore();
 			});
 
-			it("returns a new instance with the ami and type provided", function () {
+			it("fails", function () {
 				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
 				expect(result, "error").to.be.instanceof(Error);
 				expect(result.message).to.equal("Simulated Error");
