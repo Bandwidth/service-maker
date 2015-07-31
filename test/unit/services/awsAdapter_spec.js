@@ -25,6 +25,13 @@ describe("The AwsAdapter class ", function () {
 	var DEFAULT_GROUP_ID   = "sg-a1234567";
 	var DEFAULT_SG_NAME    = "service-maker";
 
+	var DEFAULT_SSH_RULE = {
+		FromPort   : 22,
+		IpProtocol : "tcp",
+		ToPort     : 22,
+		IpRanges   : [ { CidrIp : "0.0.0.0/0" } ]
+	};
+
 	var VALID_INSTANCE = {
 		ami  : DEFAULT_AMI,
 		type : DEFAULT_TYPE
@@ -100,14 +107,19 @@ describe("The AwsAdapter class ", function () {
 			});
 
 			it("returns a new instance with the ami and type provided", function () {
+
+				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
+
+				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].GroupId).to.equal(DEFAULT_GROUP_ID);
+				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
+				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].IpPermissions[ 0 ])
+				.to.deep.equal(DEFAULT_SSH_RULE);
+
 				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
 				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
-
-				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
-
-				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].GroupId).to.equal.DEFAULT_GROUP_ID;
+				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal(DEFAULT_SG_NAME);
 
 				expect(result.ami, "response").to.equal("ami-d05e75b8");
 				expect(result.type, "response").to.equal("t2.micro");
@@ -125,7 +137,7 @@ describe("The AwsAdapter class ", function () {
 
 				var error     = new Error();
 				error.message = "The security group already exists";
-				error.name    = "InvalidSecurityGroup.Duplicate";
+				error.name    = "InvalidGroup.Duplicate";
 
 				createSecurityGroupStub = Sinon.stub(ec2, "createSecurityGroupAsync")
 				.rejects(error);
@@ -155,14 +167,16 @@ describe("The AwsAdapter class ", function () {
 			});
 
 			it("returns a new instance with the ami and type provided", function () {
-				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
-				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
 
 				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
 
 				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
+
+				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal(DEFAULT_SG_NAME);
 
 				expect(result.ami, "response").to.equal("ami-d05e75b8");
 				expect(result.type, "response").to.equal("t2.micro");
