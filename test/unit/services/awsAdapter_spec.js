@@ -106,15 +106,18 @@ describe("The AwsAdapter class ", function () {
 				authorizeSecurityGroupIngressStub.restore();
 			});
 
-			it("creates the security group and returns a new instance with the ami and type provided", function () {
-
+			it("creates the security group", function () {
 				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
+			});
 
+			it("adds rules for SSH to the security group", function () {
 				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].GroupId).to.equal(DEFAULT_GROUP_ID);
 				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
 				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].IpPermissions[ 0 ])
 				.to.deep.equal(DEFAULT_SSH_RULE);
+			});
 
+			it("and returns a new instance with the ami and type provided", function () {
 				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
 				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
@@ -166,12 +169,15 @@ describe("The AwsAdapter class ", function () {
 				authorizeSecurityGroupIngressStub.restore();
 			});
 
-			it("returns a new instance with the ami and type provided", function () {
-
+			it("finds the group already created", function () {
 				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
+			});
 
+			it("checks that it isn't modified", function () {
 				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
+			});
 
+			it("and returns a new instance with the ami and type provided", function () {
 				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
 				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
@@ -225,13 +231,17 @@ describe("The AwsAdapter class ", function () {
 				authorizeSecurityGroupIngressStub.restore();
 			});
 
-			it("fails", function () {
+			it("expects an error", function () {
 				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
 				expect(result, "error").to.be.instanceof(Error);
 				expect(result.message).to.equal("Simulated Error");
+			});
 
+			it("doesn't create a new instance", function () {
 				expect(runInstancesStub.callCount).to.equal(0);
+			});
 
+			it("doesn't try adding rules to the security group", function () {
 				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
 			});
 		});
@@ -647,16 +657,22 @@ describe("The AwsAdapter class ", function () {
 				waitForStub.restore();
 			});
 
-			it("terminates the instance, sets the state on the AWS console to terminated", function () {
+			it("gets the details of the instance, sets the state on the AWS console to terminated", function () {
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			});
 
+			it("starts terminating the instance", function () {
 				expect(terminateInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
+			});
 
+			it("waits for the instance to be terminated", function () {
 				expect(waitForStub.args[ 0 ][ 0 ]).to.equal("instanceTerminated");
 				expect(waitForStub.args[ 0 ][ 1 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(waitForStub.args[ 0 ][ 1 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			});
 
+			it("checks the instance is terminated", function () {
 				expect(result.Reservations[ 0 ].Instances[ 0 ].InstanceId).to.equal(VALID_AWS_ID);
 				expect(result.Reservations[ 0 ].Instances[ 0 ].state).to.equal("terminated");
 			});
@@ -725,12 +741,16 @@ describe("The AwsAdapter class ", function () {
 				waitForStub.restore();
 			});
 
-			it("throws an error", function () {
+			it("gets the instance details", function () {
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			});
 
+			it("starts terminating the instance", function () {
 				expect(terminateInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
+			});
 
+			it("times out", function () {
 				expect(result.message).to.contain("timed out");
 			});
 
