@@ -1494,7 +1494,7 @@ describe("The Rest plugin", function () {
 
 	});
 
-	describe("creating awsAdapter object", function () {
+	describe("creating awsAdapter object when the options passed are invalid", function () {
 		var server     = new Hapi.Server();
 		var awsAdapter = {};
 		var result;
