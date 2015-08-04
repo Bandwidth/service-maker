@@ -1222,7 +1222,6 @@ describe("The Rest plugin", function () {
 			var responseCode;
 
 			before(function () {
-				//revision reflects the document is updated twice when terminateInstances() is successful.
 				terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
 					return Bluebird.reject(new Error("Simulated Failure"));
 				});
