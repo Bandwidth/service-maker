@@ -946,7 +946,7 @@ describe("The Rest plugin", function () {
 				});
 			});
 
-			describe("when the database fails after terminateInstances has run", function () {
+			describe("when the database completely fails after terminateInstances has run", function () {
 
 				var result;
 				var updateStub;
@@ -1016,6 +1016,110 @@ describe("The Rest plugin", function () {
 
 				it("leaves the state unchanged(terminating)", function () {
 					expect(updateStub.callCount).to.equal(2);
+					expect(result.state).to.equal("terminating");
+				});
+			});
+
+			describe("when the database fails after terminateInstances has run, but then recovers", function () {
+
+				var result;
+				var updateResult;
+				var updateStub;
+				var getStub;
+				var terminateInstancesStub;
+				var server     = new Hapi.Server();
+				var instances  = new InstanceAdapter();
+				var awsAdapter = new AwsAdapter();
+				before(function (done) {
+
+					return instances.createInstance()
+					.then(function (instance) {
+						updateStub = Sinon.stub(instances, "updateInstance").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "terminating",
+								uri      : instance.uri,
+								revision : instance.revision + 1
+							})
+						);
+
+						updateStub.onCall(1).rejects(new Error("Simulated Error"));
+
+						updateStub.onCall(2).returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "failed",
+								uri      : instance.uri,
+								revision : instance.revision + 2
+							})
+							.then(function (result) {
+								updateResult = result;
+								done();
+							})
+						);
+						//revision reflects the document is updated twice when terminateInstances() is successful.
+						terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
+							return Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "terminated",
+								uri      : instance.uri,
+								revision : instance.revision + 2
+							});
+						});
+
+						getStub = Sinon.stub(instances, "getInstance").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : instance.state,
+								uri      : instance.uri,
+								revision : instance.revision
+							})
+						);
+
+						server.connection();
+						server.registerAsync({
+							register : Rest,
+							options  : {
+								instances  : instances,
+								awsAdapter : awsAdapter
+							}
+						});
+
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : instance.ami,
+							type     : instance.type,
+							uri      : instance.uri,
+							state    : "terminating",
+							revision : instance.revision
+						});
+						return request.inject(server);
+					})
+					.then(function (response) {
+						result = response.result;
+					});
+				});
+
+				after(function () {
+					terminateInstancesStub.restore();
+					updateStub.restore();
+					getStub.restore();
+				});
+
+				it("changes the state to failed", function () {
+					expect(getStub.callCount).to.equal(1);
+					expect(updateStub.callCount).to.equal(3);
+					//Final result in the database
+					expect(updateResult.state).to.equal("failed");
+					//This is returned to the user before the rest of the function is executed
 					expect(result.state).to.equal("terminating");
 				});
 			});
@@ -1354,7 +1458,7 @@ describe("The Rest plugin", function () {
 				});
 			});
 
-			describe("when the database fails after stopInstances has run", function () {
+			describe("when the database completely fails after stopInstances has run", function () {
 
 				var result;
 				var updateStub;
@@ -1425,7 +1529,111 @@ describe("The Rest plugin", function () {
 				});
 			});
 
-			describe("when the database and stopInstances fail", function () {
+			describe("when the database fails after stopInstances has run, but then recovers", function () {
+
+				var result;
+				var updateResult;
+				var updateStub;
+				var getStub;
+				var stopInstancesStub;
+				var server     = new Hapi.Server();
+				var instances  = new InstanceAdapter();
+				var awsAdapter = new AwsAdapter();
+				before(function (done) {
+
+					return instances.createInstance()
+					.then(function (instance) {
+						updateStub = Sinon.stub(instances, "updateInstance").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "stopping",
+								uri      : instance.uri,
+								revision : instance.revision + 1
+							})
+						);
+						updateStub.onCall(1).rejects(new Error("Simulated error"));
+
+						updateStub.onCall(2).returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "failed",
+								uri      : instance.uri,
+								revision : instance.revision + 2
+							})
+							.then(function (result) {
+								updateResult = result;
+								done();
+							})
+						);
+
+						getStub = Sinon.stub(instances, "getInstance").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : instance.state,
+								uri      : instance.uri,
+								revision : instance.revision
+							})
+						);
+
+						//revision reflects the document is updated twice when terminateInstances() is successful.
+						stopInstancesStub = Sinon.stub(awsAdapter, "stopInstances").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "stopped",
+								uri      : instance.uri,
+								revision : instance.revision + 2
+							})
+						);
+
+						server.connection();
+						server.registerAsync({
+							register : Rest,
+							options  : {
+								instances  : instances,
+								awsAdapter : awsAdapter
+							}
+						});
+
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : instance.ami,
+							type     : instance.type,
+							uri      : instance.uri,
+							state    : "stopping",
+							revision : instance.revision
+						});
+						return request.inject(server);
+					})
+					.then(function (response) {
+						result = response.result;
+					});
+				});
+
+				after(function () {
+					stopInstancesStub.restore();
+					updateStub.restore();
+					getStub.restore();
+				});
+
+				it("leaves the state unchanged(stopping)", function () {
+					expect(getStub.callCount).to.equal(1);
+					expect(updateStub.callCount).to.equal(3);
+					//This is what the final state is once the function executes
+					expect(updateResult.state).to.equal("failed");
+					//This is returned to the user before the rest of the function executes
+					expect(result.state).to.equal("stopping");
+				});
+			});
+
+			describe("when the database and stopInstances completely fail", function () {
 
 				var response;
 				var getStub;
