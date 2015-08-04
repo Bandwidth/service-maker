@@ -676,7 +676,7 @@ describe("The Rest plugin", function () {
 			var terminateInstancesStub;
 
 			describe("when the instance is valid", function () {
-				before(function () {
+				before(function (done) {
 
 					return instances.createInstance()
 					.then(function (instance) {
@@ -691,6 +691,9 @@ describe("The Rest plugin", function () {
 								state    : "terminated",
 								uri      : null,
 								revision : instance.revision + 2
+							})
+							.then(function () {
+								done();
 							})
 						);
 
@@ -719,6 +722,10 @@ describe("The Rest plugin", function () {
 
 				after(function () {
 					terminateInstancesStub.restore();
+				});
+
+				it("terminateInstances is called with the correct parameters", function () {
+					expect(terminateInstancesStub.args[ 0 ][ 0 ]).to.equal(updatedInstance.id);
 				});
 
 				it("the status is set to terminated", function () {
@@ -792,12 +799,13 @@ describe("The Rest plugin", function () {
 				var responses;
 				var terminateInstancesStub;
 
-				before(function () {
+				before(function (done) {
 					return instances.createInstance()
 					.then(function (instance) {
 						//revision reflects the document is updated twice when terminateInstances() is successful.
-						terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
-							Bluebird.resolve({
+						terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
+
+							return Bluebird.resolve({
 								id       : instance.id,
 								ami      : instance.ami,
 								type     : instance.type,
@@ -805,7 +813,10 @@ describe("The Rest plugin", function () {
 								uri      : instance.uri,
 								revision : instance.revision + 2
 							})
-						);
+							.then(function () {
+								done();
+							});
+						});
 						return instances.getInstance({ id : instance.id });
 					})
 					.then(function (instance) {
@@ -887,6 +898,7 @@ describe("The Rest plugin", function () {
 
 				});
 			});
+
 			describe("when the connection to the database fails", function () {
 
 				var result;
@@ -942,7 +954,7 @@ describe("The Rest plugin", function () {
 				var server     = new Hapi.Server();
 				var instances  = new InstanceAdapter();
 				var awsAdapter = new AwsAdapter();
-				before(function () {
+				before(function (done) {
 
 					return instances.createInstance()
 					.then(function (instance) {
@@ -959,8 +971,8 @@ describe("The Rest plugin", function () {
 						updateStub.onCall(1).rejects(new Error("Connection to the database fails."));
 
 						//revision reflects the document is updated twice when terminateInstances() is successful.
-						terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
-							Bluebird.resolve({
+						terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
+							return Bluebird.resolve({
 								id       : instance.id,
 								ami      : instance.ami,
 								type     : instance.type,
@@ -968,7 +980,10 @@ describe("The Rest plugin", function () {
 								uri      : instance.uri,
 								revision : instance.revision + 2
 							})
-						);
+							.then(function () {
+								done();
+							});
+						});
 
 						server.connection();
 						server.registerAsync({
@@ -1060,7 +1075,7 @@ describe("The Rest plugin", function () {
 
 		});
 
-		describe("setting the status of a created instance to stopped", function () {
+		describe("setting the state of a created instance to stopped", function () {
 
 			var instanceID;
 			var revision;
@@ -1070,15 +1085,15 @@ describe("The Rest plugin", function () {
 
 			describe("when the instance is valid", function () {
 
-				before(function () {
+				before(function (done) {
 
 					return instances.createInstance()
 					.then(function (instance) {
 						instanceID = instance.id;
 						revision   = instance.revision;
-						//revision reflects the document is updated twice when terminateInstances() is successful.
-						stopInstancesStub = Sinon.stub(awsAdapter, "stopInstances").returns(
-							Bluebird.resolve({
+						//revision reflects the document is updated twice when stopInstances() is successful.
+						stopInstancesStub = Sinon.stub(awsAdapter, "stopInstances", function () {
+							return Bluebird.resolve({
 								id       : instance.id,
 								ami      : instance.ami,
 								type     : instance.type,
@@ -1086,7 +1101,11 @@ describe("The Rest plugin", function () {
 								uri      : null,
 								revision : instance.revision + 2
 							})
-						);
+							.then(function () {
+								done();
+							});
+
+						});
 
 						updatedInstance = new Instance({
 							id       : instance.id,
@@ -1113,6 +1132,10 @@ describe("The Rest plugin", function () {
 
 				after(function () {
 					stopInstancesStub.restore();
+				});
+
+				it("stopInstances is called with the correct parameters", function () {
+					expect(stopInstancesStub.args[ 0 ][ 0 ]).to.equal(updatedInstance.id);
 				});
 
 				it("the status is set to stopped", function () {
@@ -1186,12 +1209,13 @@ describe("The Rest plugin", function () {
 				var responses;
 				var stopInstancesStub;
 
-				before(function () {
+				before(function (done) {
 					return instances.createInstance()
 					.then(function (instance) {
-						//revision reflects the document is updated twice when terminateInstances() is successful.
-						stopInstancesStub = Sinon.stub(awsAdapter, "stopInstances").returns(
-							Bluebird.resolve({
+						//revision reflects the document is updated twice when stopInstances() is successful.
+						stopInstancesStub = Sinon.stub(awsAdapter, "stopInstances", function () {
+
+							return Bluebird.resolve({
 								id       : instance.id,
 								ami      : instance.ami,
 								type     : instance.type,
@@ -1199,7 +1223,10 @@ describe("The Rest plugin", function () {
 								uri      : instance.uri,
 								revision : instance.revision + 2
 							})
-						);
+							.then(function () {
+								done();
+							});
+						});
 						return instances.getInstance({ id : instance.id });
 					})
 					.then(function (instance) {
