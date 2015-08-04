@@ -2245,7 +2245,7 @@ describe("The Rest plugin", function () {
 						);
 						updateStub.onCall(1).rejects(new Error("Connection to the database fails."));
 
-						//revision reflects the document is updated twice when stopInstances() is successful.
+						//revision reflects the document is updated twice when startInstances() is successful.
 						startInstancesStub = Sinon.stub(awsAdapter, "startInstances", function () {
 							return Bluebird.resolve(VALID_IP_ADDRESS)
 							.then(function (result) {
@@ -2289,7 +2289,7 @@ describe("The Rest plugin", function () {
 				});
 			});
 
-			describe("when the database and stopInstances fail", function () {
+			describe("when the database and startInstances fail", function () {
 
 				var response;
 				var getStub;
