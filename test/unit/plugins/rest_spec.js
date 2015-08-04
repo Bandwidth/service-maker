@@ -243,38 +243,38 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("when there is a problem with the database connection", function () {
-			var mapper = new MemoryMapper();
-			var server = new Hapi.Server();
+		var mapper = new MemoryMapper();
+		var server = new Hapi.Server();
 
-			before(function () {
-				Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
-				server.connection();
-				return server.registerAsync({
-					register : Rest,
-					options  : {
-						mapper : mapper
-					}
-				});
-			});
-
-			after(function () {
-				mapper.create.restore();
-				return server.stopAsync();
-			});
-
-			it("returns an internal server error with status code 500", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami  : VALID_AMI,
-					type : VALID_TYPE
-				});
-				return request.inject(server)
-				.then(function (response) {
-					expect(response.result.message).to.equal("An internal server error occurred");
-					expect(response.statusCode).to.equal(500);
-				});
-
+		before(function () {
+			Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					mapper : mapper
+				}
 			});
 		});
+
+		after(function () {
+			mapper.create.restore();
+			return server.stopAsync();
+		});
+
+		it("returns an internal server error with status code 500", function () {
+			var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+				ami  : VALID_AMI,
+				type : VALID_TYPE
+			});
+			return request.inject(server)
+			.then(function (response) {
+				expect(response.result.message).to.equal("An internal server error occurred");
+				expect(response.statusCode).to.equal(500);
+			});
+
+		});
+	});
 
 	describe("getting an instance", function () {
 
