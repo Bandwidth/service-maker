@@ -1100,7 +1100,6 @@ describe("The Rest plugin", function () {
 		awsAdapter.serverLog = function () { };
 
 		before(function () {
-
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
@@ -1116,6 +1115,151 @@ describe("The Rest plugin", function () {
 		it("fails", function () {
 			expect(result).to.be.an.instanceof(Error);
 			expect(result.message).to.contain("child \"instances\" fails");
+		});
+	});
+
+	describe("Deleting an instance", function () {
+		var server          = new Hapi.Server();
+		var instanceAdapter = new InstanceAdapter();
+		var awsAdapter      = new AwsAdapter();
+
+		before(function () {
+
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					instances  : instanceAdapter,
+					awsAdapter : awsAdapter
+				}
+			});
+		});
+
+		after(function () {
+			return server.stopAsync();
+		});
+
+		describe("with an invalid instance id", function () {
+			var result;
+			var getInstanceStub;
+
+			before(function () {
+
+				getInstanceStub = Sinon.stub(instanceAdapter, "getInstance")
+				.returns(Bluebird.resolve(null));
+
+				return new Request("DELETE", "/v1/instances/" + INVALID_QUERY).inject(server)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				getInstanceStub.restore();
+			});
+
+			it("shows the instance does not exist", function () {
+				expect(result.statusCode,"status").to.equal(404);
+				expect(getInstanceStub.args[ 0 ][ 0 ].id).to.equal(INVALID_QUERY);
+			});
+		});
+
+		describe("with a valid instance id", function () {
+			var result;
+			var terminateInstancesStub;
+			var newInstance;
+			var responseCode;
+
+			before(function (done) {
+				//revision reflects the document is updated twice when terminateInstances() is successful.
+				terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
+					return Bluebird.resolve()
+					.then(function () {
+						done();
+					});
+				});
+
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					newInstance = instance;
+					var request = new Request("DELETE", "/v1/instances/" + instance.id);
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = JSON.parse(response.payload);
+					responseCode = response.statusCode;
+					return Bluebird.resolve();
+				});
+			});
+
+			after(function () {
+				terminateInstancesStub.restore();
+			});
+
+			it("returns the instance state with state set to terminating", function () {
+				expect(responseCode).to.equal(200);
+				expect(result.state).to.equal("terminating");
+			});
+
+			it("status is updated to terminated", function () {
+				return instanceAdapter.getInstance({ id : newInstance.id })
+				.then(function (response) {
+					expect(terminateInstancesStub.called).to.be.true;
+					expect(response.id).to.equal(newInstance.id);
+					expect(response.ami).to.equal(newInstance.ami);
+					expect(response.type).to.equal(newInstance.type);
+					expect(response.state).to.equal("terminated");
+					expect(response.uri).to.equal(newInstance.uri);
+					expect(response.revision).to.be.above(newInstance.revision);
+				});
+			});
+		});
+
+		describe("when there is a AWS error ", function () {
+			var result;
+			var terminateInstancesStub;
+			var newInstance;
+			var responseCode;
+
+			before(function () {
+				terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
+					return Bluebird.reject(new Error("Simulated Failure"));
+				});
+
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					newInstance = instance;
+					var request = new Request("DELETE", "/v1/instances/" + instance.id);
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = JSON.parse(response.payload);
+					responseCode = response.statusCode;
+					return Bluebird.resolve();
+				});
+			});
+
+			after(function () {
+				terminateInstancesStub.restore();
+			});
+
+			it("returns the instance state with state set to terminating", function () {
+				expect(result.state).to.equal("terminating");
+				expect(responseCode).to.equal(200);
+			});
+
+			it("returns the instance with state set to failed", function () {
+				return instanceAdapter.getInstance({ id : newInstance.id })
+				.then(function (response) {
+					expect(terminateInstancesStub.called).to.be.true;
+					expect(response.id).to.equal(newInstance.id);
+					expect(response.ami).to.equal(newInstance.ami);
+					expect(response.type).to.equal(newInstance.type);
+					expect(response.state).to.equal("failed");
+					expect(response.uri).to.equal(null);
+					expect(response.revision).to.be.above(newInstance.revision);
+				});
+			});
 		});
 	});
 });
