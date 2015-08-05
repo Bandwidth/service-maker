@@ -696,7 +696,6 @@ describe("The AwsAdapter class ", function () {
 
 			after(function () {
 				describeInstancesStub.restore();
-				terminateInstancesStub.restore();
 			});
 
 			it("throws an error", function () {
@@ -748,6 +747,147 @@ describe("The AwsAdapter class ", function () {
 
 			it("starts terminating the instance", function () {
 				expect(terminateInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
+			});
+
+			it("times out", function () {
+				expect(result.message).to.contain("timed out");
+			});
+
+		});
+
+	});
+
+	describe("stopping an instance", function () {
+
+		var describeInstancesStub;
+		var stopInstancesStub;
+		var waitForStub;
+
+		describe("when the instance is running", function () {
+			var result;
+			var awsAdapter = new AwsAdapter(awsOptions);
+
+			before(function () {
+				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
+					var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
+					return Bluebird.resolve(data);
+				});
+
+				stopInstancesStub = Sinon.stub(ec2, "stopInstancesAsync", function () {
+					var data = { TerminatingInstances : [ { InstanceId : VALID_AWS_ID } ] };
+					return Bluebird.resolve(data);
+				});
+
+				waitForStub = Sinon.stub(ec2, "waitForAsync", function () {
+					var data = { Reservations : [ { Instances : [ {
+						InstanceId : VALID_AWS_ID,
+						state      : "stopped"
+					} ] } ] };
+					return Bluebird.resolve(data);
+				});
+
+				return awsAdapter.stopInstances(VALID_ID)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				describeInstancesStub.restore();
+				stopInstancesStub.restore();
+				waitForStub.restore();
+			});
+
+			it("gets the details of the instance, sets the state on the AWS console to stopped", function () {
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			});
+
+			it("initiates stopping the instance", function () {
+				expect(stopInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
+			});
+
+			it("waits for the instance to be stopped", function () {
+				expect(waitForStub.args[ 0 ][ 0 ]).to.equal("instanceStopped");
+				expect(waitForStub.args[ 0 ][ 1 ].Filters[ 0 ].Name).to.equal("tag:ID");
+				expect(waitForStub.args[ 0 ][ 1 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			});
+
+			it("checks the instance has been stopped", function () {
+				expect(result.Reservations[ 0 ].Instances[ 0 ].InstanceId).to.equal(VALID_AWS_ID);
+				expect(result.Reservations[ 0 ].Instances[ 0 ].state).to.equal("stopped");
+			});
+		});
+
+		describe("when the instance doesn't exist", function () {
+
+			var result;
+			var awsAdapter = new AwsAdapter(awsOptions);
+
+			before(function () {
+				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync")
+				.rejects(new Error("InvalidInstance.NotFound"));
+
+				return awsAdapter.stopInstances(VALID_ID)
+				.catch(function (error) {
+					result = error;
+				});
+
+			});
+
+			after(function () {
+				describeInstancesStub.restore();
+			});
+
+			it("throws an error", function () {
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+				expect(result).to.match(/InvalidInstance.NotFound/);
+			});
+
+		});
+
+		describe("when waitFor times out", function () {
+			var result;
+			var awsAdapter = new AwsAdapter(awsOptions);
+
+			before(function () {
+				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
+					var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
+					return Bluebird.resolve(data);
+				});
+
+				stopInstancesStub = Sinon.stub(ec2, "stopInstancesAsync", function () {
+					var data = { TerminatingInstances : [ { InstanceId : VALID_AWS_ID } ] };
+					return Bluebird.resolve(data);
+				});
+
+				waitForStub = Sinon.stub(ec2, "waitForAsync", function () {
+					var error = new Error("TimeoutError");
+					error.message = "The request to stop the instance timed out.";
+					return Bluebird.reject(error);
+				});
+
+				return awsAdapter.stopInstances(VALID_ID)
+				.catch(function (response) {
+					result = response;
+				});
+
+			});
+
+			after(function () {
+				describeInstancesStub.restore();
+				stopInstancesStub.restore();
+				waitForStub.restore();
+			});
+
+			it("gets the instance details", function () {
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			});
+
+			it("starts terminating the instance", function () {
+				expect(stopInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
 			});
 
 			it("times out", function () {
