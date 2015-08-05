@@ -1031,7 +1031,6 @@ describe("The Rest plugin", function () {
 			describe("when the database fails after terminateInstances has run, but then recovers", function () {
 
 				var result;
-				var updateResult;
 				var updateStub;
 				var getStub;
 				var terminateInstancesStub;
@@ -1064,8 +1063,7 @@ describe("The Rest plugin", function () {
 								uri      : instance.uri,
 								revision : instance.revision + 2
 							})
-							.then(function (result) {
-								updateResult = result;
+							.then(function () {
 								done();
 							})
 						);
@@ -1126,11 +1124,29 @@ describe("The Rest plugin", function () {
 					expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
 				});
 
+				it("updateInstance is called with the correct parameters the second time", function () {
+					expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
+					expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
+					expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
+					expect(updateStub.secondCall.args[ 0 ].state).to.equal("terminated");
+					expect(updateStub.secondCall.args[ 0 ].uri).to.equal(null);
+				});
+
+				it("updateInstance is called with the correct parameters the third time", function () {
+					expect(updateStub.thirdCall.args[ 0 ].id).to.match(ID_REGEX);
+					expect(updateStub.thirdCall.args[ 0 ].ami).to.equal(VALID_AMI);
+					expect(updateStub.thirdCall.args[ 0 ].type).to.equal(VALID_TYPE);
+					expect(updateStub.thirdCall.args[ 0 ].state).to.equal("failed");
+					expect(updateStub.thirdCall.args[ 0 ].uri).to.equal(null);
+				});
+
+				it("getInstance is called with the correct parameters the second time", function () {
+					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				});
+
 				it("changes the state to failed", function () {
 					expect(getStub.callCount).to.equal(1);
 					expect(updateStub.callCount).to.equal(3);
-					//Final result in the database
-					expect(updateResult.state).to.equal("failed");
 					//This is returned to the user before the rest of the function is executed
 					expect(result.state).to.equal("terminating");
 				});
@@ -1211,6 +1227,18 @@ describe("The Rest plugin", function () {
 					expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
 				});
 
+				it("updateInstance is called with the correct parameters the second time", function () {
+					expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
+					expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
+					expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
+					expect(updateStub.secondCall.args[ 0 ].state).to.equal("terminated");
+					expect(updateStub.secondCall.args[ 0 ].uri).to.equal(null);
+				});
+
+				it("getInstance is called with the correct parameters the second time", function () {
+					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				});
+
 				it("leaves the state unchanged(stopping)", function () {
 					expect(getStub.callCount).to.equal(1);
 					expect(updateStub.callCount).to.equal(2);
@@ -1268,6 +1296,10 @@ describe("The Rest plugin", function () {
 
 				it("terminateInstances is called with the instance ID", function () {
 					expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
+				it("getInstance is called with the correct parameters the second time", function () {
+					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
 				});
 
 				it("leaves the state unchanged(terminating)", function () {
@@ -1622,6 +1654,14 @@ describe("The Rest plugin", function () {
 					updateStub.restore();
 				});
 
+				it("updateInstance is called with the correct parameters the second time", function () {
+					expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
+					expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
+					expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
+					expect(updateStub.secondCall.args[ 0 ].state).to.equal("stopped");
+					expect(updateStub.secondCall.args[ 0 ].uri).to.equal(null);
+				});
+
 				it("stopInstances is called with the instance ID", function () {
 					expect(stopInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
 				});
@@ -1635,7 +1675,6 @@ describe("The Rest plugin", function () {
 			describe("when the database fails after stopInstances has run, but then recovers", function () {
 
 				var result;
-				var updateResult;
 				var updateStub;
 				var getStub;
 				var stopInstancesStub;
@@ -1667,8 +1706,7 @@ describe("The Rest plugin", function () {
 								uri      : instance.uri,
 								revision : instance.revision + 2
 							})
-							.then(function (result) {
-								updateResult = result;
+							.then(function () {
 								done();
 							})
 						);
@@ -1730,11 +1768,29 @@ describe("The Rest plugin", function () {
 					expect(stopInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
 				});
 
+				it("updateInstance is called with the correct parameters the second time", function () {
+					expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
+					expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
+					expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
+					expect(updateStub.secondCall.args[ 0 ].state).to.equal("stopped");
+					expect(updateStub.secondCall.args[ 0 ].uri).to.equal(null);
+				});
+
+				it("updateInstance is called with the correct parameters the third time", function () {
+					expect(updateStub.thirdCall.args[ 0 ].id).to.match(ID_REGEX);
+					expect(updateStub.thirdCall.args[ 0 ].ami).to.equal(VALID_AMI);
+					expect(updateStub.thirdCall.args[ 0 ].type).to.equal(VALID_TYPE);
+					expect(updateStub.thirdCall.args[ 0 ].state).to.equal("failed");
+					expect(updateStub.thirdCall.args[ 0 ].uri).to.equal(null);
+				});
+
+				it("getInstance is called with the correct parameters the second time", function () {
+					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				});
+
 				it("leaves the state unchanged(stopping)", function () {
 					expect(getStub.callCount).to.equal(1);
 					expect(updateStub.callCount).to.equal(3);
-					//This is what the final state is once the function executes
-					expect(updateResult.state).to.equal("failed");
 					//This is returned to the user before the rest of the function executes
 					expect(result.state).to.equal("stopping");
 				});
@@ -1811,8 +1867,20 @@ describe("The Rest plugin", function () {
 					getStub.restore();
 				});
 
+				it("updateInstance is called with the correct parameters the second time", function () {
+					expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
+					expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
+					expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
+					expect(updateStub.secondCall.args[ 0 ].state).to.equal("stopped");
+					expect(updateStub.secondCall.args[ 0 ].uri).to.equal(null);
+				});
+
 				it("stopInstances is called with the instance ID", function () {
 					expect(stopInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
+				it("getInstance is called with the correct parameters the second time", function () {
+					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
 				});
 
 				it("leaves the state unchanged(stopping)", function () {
@@ -1872,6 +1940,10 @@ describe("The Rest plugin", function () {
 
 				it("stopInstances is called with the instance ID", function () {
 					expect(stopInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
+				it("getInstance is called with the correct parameters the second time", function () {
+					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
 				});
 
 				it("leaves the state unchanged(stopping)", function () {
