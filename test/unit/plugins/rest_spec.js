@@ -1261,5 +1261,82 @@ describe("The Rest plugin", function () {
 				});
 			});
 		});
+
+		describe("when the connection to the database fails", function () {
+			var result;
+			var updateStub;
+
+			before(function () {
+				updateStub = Sinon.stub(instanceAdapter, "updateInstance")
+				.rejects(new Error("Database connection failed."));
+
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					var request = new Request("DELETE", "/v1/instances/" + instance.id);
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response.result;
+				});
+			});
+
+			after(function () {
+				updateStub.restore();
+			});
+
+			it("returns a 500 error", function () {
+				expect(result.statusCode).to.equal(500);
+			});
+		});
+
+		describe("when the database fails after terminateInstances has run", function () {
+			var result;
+			var updateStub;
+			var terminateInstancesStub;
+
+			before(function (done) {
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					updateStub = Sinon.stub(instanceAdapter, "updateInstance").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "terminating",
+							uri      : instance.uri,
+							revision : instance.revision + 1
+						})
+					);
+					updateStub.onCall(1).rejects(new Error("Connection to the database fails."));
+
+					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
+						return Bluebird.resolve()
+						.then(function () {
+							done();
+						});
+					});
+
+					var request = new Request("DELETE", "/v1/instances/" + instance.id);
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response.result;
+				});
+			});
+
+			after(function () {
+				updateStub.restore();
+				terminateInstancesStub.restore();
+			});
+
+			it("terminateInstances is called with instance id", function () {
+				expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+			});
+
+			it("leaves the state unchanged (terminating)", function () {
+				expect(updateStub.callCount).to.equal(2);
+				expect(result.state).to.equal("terminating");
+			});
+		});
 	});
 });
