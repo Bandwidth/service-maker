@@ -11,6 +11,7 @@ var Instance        = require("../../../lib/models/Instance");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var Sinon           = require("sinon");
 var _               = require("lodash");
+var Environment     = require("apparition").Environment;
 
 require("sinon-as-promised");
 
@@ -59,11 +60,12 @@ describe("The Rest plugin", function () {
 	describe("creating a new instance", function () {
 		var server = new Hapi.Server();
 		var runInstancesStub;
-
+		var environment = new Environment();
 		var awsAdapter = new AwsAdapter();
 
 		before(function () {
 
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 			.returns(Bluebird.resolve({
 				id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
@@ -84,15 +86,17 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
+			environment.restore();
 			runInstancesStub.restore();
 			return server.stopAsync();
 		});
 
 		describe("with valid parameters passed - excluding a security group", function () {
+
 			it("creates the instance and returns the canonical uri", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami           : VALID_AMI,
-					type          : VALID_TYPE,
+					ami  : VALID_AMI,
+					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
@@ -172,12 +176,24 @@ describe("The Rest plugin", function () {
 		});
 
 		describe("when the credentials aren't properly configured", function () {
+
+			var result;
+
 			before(function () {
 				var AuthError  = new Error();
 				AuthError.name = "AuthFailure";
 
 				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 				.rejects(AuthError);
+
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					result = JSON.parse(response.payload);
+				});
 			});
 
 			after(function () {
@@ -185,21 +201,15 @@ describe("The Rest plugin", function () {
 			});
 
 			it("returns an error with statusCode 500", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami  : VALID_AMI,
-					type : VALID_TYPE
-				});
-				return request.inject(server)
-				.then(function (response) {
-					var error = JSON.parse(response.payload);
-					expect(error.statusCode, "status").to.equal(500);
-					expect(error.message)
-					.to.equal("An internal server error occurred");
-				});
+				expect(result.statusCode, "status").to.equal(500);
+				expect(result.message)
+				.to.equal("An internal server error occurred");
 			});
 		});
 
 		describe("with an ami that doesn't exist", function () {
+
+			var result;
 
 			before(function () {
 				var AMIError  = new Error();
@@ -207,35 +217,15 @@ describe("The Rest plugin", function () {
 
 				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 				.rejects(AMIError);
-			});
 
-			after(function () {
-				runInstancesStub.restore();
-			});
-
-			it("returns an error with statusCode 400", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : "ami-invalid",
 					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
-					var error = JSON.parse(response.payload);
-					expect(error.statusCode, "status").to.equal(400);
-					expect(error.message)
-					.to.equal("The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.");
+					result = JSON.parse(response.payload);
 				});
-			});
-		});
-
-		describe("with a type that doesn't exist", function () {
-
-			before(function () {
-				var TypeError  = new Error();
-				TypeError.name = "InvalidParameterValue";
-
-				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
-				.rejects(TypeError);
 			});
 
 			after(function () {
@@ -243,17 +233,97 @@ describe("The Rest plugin", function () {
 			});
 
 			it("returns an error with statusCode 400", function () {
+				expect(result.statusCode, "status").to.equal(400);
+				expect(result.message)
+				.to.equal("The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.");
+			});
+		});
+
+		describe("with a type that doesn't exist", function () {
+
+			var result;
+
+			before(function () {
+				var TypeError     = new Error();
+				TypeError.name    = "InvalidParameterValue";
+				TypeError.message = "The Type entered does not exist. Ensure it is a valid EC2 type.";
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.rejects(TypeError);
+
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
 					type : "t2.notExist"
 				});
 				return request.inject(server)
 				.then(function (response) {
-					var error = JSON.parse(response.payload);
-					expect(error.statusCode, "status").to.equal(400);
-					expect(error.message)
-					.to.equal("The Type entered does not exist. Ensure it is a valid EC2 type.");
+					result = JSON.parse(response.payload);
 				});
+
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("runInstances is called with the correct parameters", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal("t2.notExist");
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+			});
+
+			it("returns an error with statusCode 400", function () {
+				expect(result.statusCode, "status").to.equal(400);
+				expect(result.message)
+				.to.equal("The Type entered does not exist. Ensure it is a valid EC2 type.");
+			});
+		});
+
+		describe("with a reserved security group name", function () {
+
+			var result;
+
+			before(function () {
+				var SecurityGroupError     = new Error();
+				SecurityGroupError.name    = "InvalidParameterValue";
+				SecurityGroupError.message = "The security group name entered is reserved";
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.rejects(SecurityGroupError);
+
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami           : VALID_AMI,
+					type          : "t2.micro",
+					securityGroup : "reserved-group"
+				});
+
+				return request.inject(server)
+				.then(function (response) {
+					result = JSON.parse(response.payload);
+				});
+
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("runInstances is called with the correct parameters", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("reserved-group");
+			});
+
+			it("returns an error with statusCode 400", function () {
+				expect(result.statusCode, "status").to.equal(400);
+				expect(result.message)
+				.to.equal("The security group name entered is reserved");
 			});
 		});
 
