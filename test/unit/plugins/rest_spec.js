@@ -20,6 +20,7 @@ describe("The Rest plugin", function () {
 	var VALID_INSTANCE_ID = "da14fbf2-5404-4f92-b55f-a961578204ed";
 	var VALID_AMI         = "ami-d05e75b8";
 	var VALID_TYPE        = "t2.micro";
+	var VALID_SEC_GROUP   = "default-group";
 	var ID_REGEX          = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 	var VALID_IP_ADDRESS  = "127.0.0.1";
 
@@ -87,11 +88,27 @@ describe("The Rest plugin", function () {
 			return server.stopAsync();
 		});
 
-		describe("with valid parameters passed", function () {
+		describe("with valid parameters passed - excluding a security group", function () {
 			it("creates the instance and returns the canonical uri", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami  : VALID_AMI,
-					type : VALID_TYPE
+					ami           : VALID_AMI,
+					type          : VALID_TYPE,
+				});
+				return request.inject(server)
+				.then(function (response) {
+					response.payload = JSON.parse(response.payload);
+					expect(response.statusCode, "status").to.equal(201);
+					expect(response.headers.location, "location").to.match(location);
+				});
+			});
+		});
+
+		describe("with valid parameters passed - including a security group", function () {
+			it("creates the instance and returns the canonical uri", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami           : VALID_AMI,
+					type          : VALID_TYPE,
+					securityGroup : VALID_SEC_GROUP
 				});
 				return request.inject(server)
 				.then(function (response) {

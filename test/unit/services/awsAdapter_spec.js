@@ -94,7 +94,7 @@ describe("The AwsAdapter class ", function () {
 
 				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				});
@@ -157,7 +157,7 @@ describe("The AwsAdapter class ", function () {
 
 				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				});
@@ -216,7 +216,7 @@ describe("The AwsAdapter class ", function () {
 
 				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				})
