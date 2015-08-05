@@ -1531,7 +1531,7 @@ describe("The Rest plugin", function () {
 					expect(response.statusCode).to.equal(200);
 				});
 
-				it("returns the instance with state set to failed", function () {
+				it("then updates the instance state set to failed", function () {
 					return instances.getInstance({ id : instanceID })
 					.then(function (response) {
 						expect(response.id).to.equal(instanceID);
@@ -2151,7 +2151,7 @@ describe("The Rest plugin", function () {
 				expect(responseCode).to.equal(200);
 			});
 
-			it("returns the instance with state set to failed", function () {
+			it("then updates the instance state set to failed", function () {
 				return instanceAdapter.getInstance({ id : newInstance.id })
 				.then(function (response) {
 					expect(terminateInstancesStub.called).to.be.true;
