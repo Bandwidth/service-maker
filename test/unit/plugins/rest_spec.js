@@ -2002,6 +2002,7 @@ describe("The Rest plugin", function () {
 		awsAdapter.serverLog = function () { };
 
 		before(function () {
+
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
