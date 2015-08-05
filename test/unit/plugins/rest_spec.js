@@ -882,6 +882,10 @@ describe("The Rest plugin", function () {
 					terminateInstancesStub.restore();
 				});
 
+				it("terminateInstances is called with the instance ID", function () {
+					expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
 				it("returns the instance with state set to terminating", function () {
 					expect(response.result.id).to.equal(instanceID);
 					expect(response.result.state).to.equal("terminating");
@@ -1014,6 +1018,10 @@ describe("The Rest plugin", function () {
 					updateStub.restore();
 				});
 
+				it("terminateInstances is called with the instance ID", function () {
+					expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
 				it("leaves the state unchanged(terminating)", function () {
 					expect(updateStub.callCount).to.equal(2);
 					expect(result.state).to.equal("terminating");
@@ -1114,12 +1122,99 @@ describe("The Rest plugin", function () {
 					getStub.restore();
 				});
 
+				it("terminateInstances is called with the instance ID", function () {
+					expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
 				it("changes the state to failed", function () {
 					expect(getStub.callCount).to.equal(1);
 					expect(updateStub.callCount).to.equal(3);
 					//Final result in the database
 					expect(updateResult.state).to.equal("failed");
 					//This is returned to the user before the rest of the function is executed
+					expect(result.state).to.equal("terminating");
+				});
+			});
+
+			describe("when the getInstance fails after the second updateInstance fails", function () {
+
+				var result;
+				var updateStub;
+				var getStub;
+				var terminateInstancesStub;
+				var server     = new Hapi.Server();
+				var instances  = new InstanceAdapter();
+				var awsAdapter = new AwsAdapter();
+
+				before(function () {
+
+					return instances.createInstance()
+					.then(function (instance) {
+						updateStub = Sinon.stub(instances, "updateInstance").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "terminating",
+								uri      : instance.uri,
+								revision : instance.revision + 1
+							})
+						);
+						updateStub.onCall(1).rejects(new Error("Simulated error"));
+
+						getStub = Sinon.stub(instances, "getInstance")
+						.rejects(new Error("Connection to the database has failed."));
+
+						//revision reflects the document is updated twice when terminateInstances() is successful.
+						terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "terminated",
+								uri      : instance.uri,
+								revision : instance.revision + 2
+							})
+						);
+
+						server.connection();
+						server.registerAsync({
+							register : Rest,
+							options  : {
+								instances  : instances,
+								awsAdapter : awsAdapter
+							}
+						});
+
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : instance.ami,
+							type     : instance.type,
+							uri      : instance.uri,
+							state    : "terminating",
+							revision : instance.revision
+						});
+						return request.inject(server);
+					})
+					.then(function (response) {
+						result = response.result;
+					});
+				});
+
+				after(function () {
+					terminateInstancesStub.restore();
+					updateStub.restore();
+					getStub.restore();
+				});
+
+				it("terminateInstances is called with the instance ID", function () {
+					expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
+				it("leaves the state unchanged(stopping)", function () {
+					expect(getStub.callCount).to.equal(1);
+					expect(updateStub.callCount).to.equal(2);
+					//This is returned to the user before the rest of the function executes
 					expect(result.state).to.equal("terminating");
 				});
 			});
@@ -1169,6 +1264,10 @@ describe("The Rest plugin", function () {
 				after(function () {
 					terminateInstancesStub.restore();
 					getStub.restore();
+				});
+
+				it("terminateInstances is called with the instance ID", function () {
+					expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
 				});
 
 				it("leaves the state unchanged(terminating)", function () {
@@ -1523,6 +1622,10 @@ describe("The Rest plugin", function () {
 					updateStub.restore();
 				});
 
+				it("stopInstances is called with the instance ID", function () {
+					expect(stopInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
 				it("leaves the state unchanged(stopping)", function () {
 					expect(updateStub.callCount).to.equal(2);
 					expect(result.state).to.equal("stopping");
@@ -1623,11 +1726,98 @@ describe("The Rest plugin", function () {
 					getStub.restore();
 				});
 
+				it("stopInstances is called with the instance ID", function () {
+					expect(stopInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
 				it("leaves the state unchanged(stopping)", function () {
 					expect(getStub.callCount).to.equal(1);
 					expect(updateStub.callCount).to.equal(3);
 					//This is what the final state is once the function executes
 					expect(updateResult.state).to.equal("failed");
+					//This is returned to the user before the rest of the function executes
+					expect(result.state).to.equal("stopping");
+				});
+			});
+
+			describe("when the getInstance fails after the second updateInstance fails", function () {
+
+				var result;
+				var updateStub;
+				var getStub;
+				var stopInstancesStub;
+				var server     = new Hapi.Server();
+				var instances  = new InstanceAdapter();
+				var awsAdapter = new AwsAdapter();
+
+				before(function () {
+
+					return instances.createInstance()
+					.then(function (instance) {
+						updateStub = Sinon.stub(instances, "updateInstance").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "stopping",
+								uri      : instance.uri,
+								revision : instance.revision + 1
+							})
+						);
+						updateStub.onCall(1).rejects(new Error("Simulated error"));
+
+						getStub = Sinon.stub(instances, "getInstance")
+						.rejects(new Error("Connection to the database has failed."));
+
+						//revision reflects the document is updated twice when terminateInstances() is successful.
+						stopInstancesStub = Sinon.stub(awsAdapter, "stopInstances").returns(
+							Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "stopped",
+								uri      : instance.uri,
+								revision : instance.revision + 2
+							})
+						);
+
+						server.connection();
+						server.registerAsync({
+							register : Rest,
+							options  : {
+								instances  : instances,
+								awsAdapter : awsAdapter
+							}
+						});
+
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : instance.ami,
+							type     : instance.type,
+							uri      : instance.uri,
+							state    : "stopping",
+							revision : instance.revision
+						});
+						return request.inject(server);
+					})
+					.then(function (response) {
+						result = response.result;
+					});
+				});
+
+				after(function () {
+					stopInstancesStub.restore();
+					updateStub.restore();
+					getStub.restore();
+				});
+
+				it("stopInstances is called with the instance ID", function () {
+					expect(stopInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				});
+
+				it("leaves the state unchanged(stopping)", function () {
+					expect(getStub.callCount).to.equal(1);
+					expect(updateStub.callCount).to.equal(2);
 					//This is returned to the user before the rest of the function executes
 					expect(result.state).to.equal("stopping");
 				});
@@ -1678,6 +1868,10 @@ describe("The Rest plugin", function () {
 				after(function () {
 					stopInstancesStub.restore();
 					getStub.restore();
+				});
+
+				it("stopInstances is called with the instance ID", function () {
+					expect(stopInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
 				});
 
 				it("leaves the state unchanged(stopping)", function () {
