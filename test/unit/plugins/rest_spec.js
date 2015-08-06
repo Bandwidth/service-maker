@@ -123,6 +123,53 @@ describe("The Rest plugin", function () {
 			});
 		});
 
+		describe("with valid parameters passed - when the default group is not specified", function () {
+
+			before(function () {
+				environment.delete("AWS_DEFAULT_SECURITY_GROUP");
+			});
+
+			after(function () {
+				environment.restore();
+			});
+
+			it("creates the instance and returns the canonical uri", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami           : VALID_AMI,
+					type          : VALID_TYPE,
+					securityGroup : VALID_SEC_GROUP
+				});
+				return request.inject(server)
+				.then(function (response) {
+					response.payload = JSON.parse(response.payload);
+					expect(response.statusCode, "status").to.equal(500);
+				});
+			});
+		});
+
+		describe("with valid parameters passed - when the default group is not specified", function () {
+
+			before(function () {
+				environment.delete("AWS_DEFAULT_SECURITY_GROUP");
+			});
+
+			after(function () {
+				environment.restore();
+			});
+
+			it("creates the instance and returns the canonical uri", function () {
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					response.payload = JSON.parse(response.payload);
+					expect(response.statusCode, "status").to.equal(500);
+				});
+			});
+		});
+
 		describe("with no parameters passed", function () {
 			it("creates the instance and returns the canonical uri", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json");
