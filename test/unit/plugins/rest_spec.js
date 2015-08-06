@@ -1531,7 +1531,7 @@ describe("The Rest plugin", function () {
 					expect(response.statusCode).to.equal(200);
 				});
 
-				it("returns the instance with state set to failed", function () {
+				it("then updates the instance state set to failed", function () {
 					return instances.getInstance({ id : instanceID })
 					.then(function (response) {
 						expect(response.id).to.equal(instanceID);
@@ -2002,6 +2002,7 @@ describe("The Rest plugin", function () {
 		awsAdapter.serverLog = function () { };
 
 		before(function () {
+
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
@@ -2150,7 +2151,7 @@ describe("The Rest plugin", function () {
 				expect(responseCode).to.equal(200);
 			});
 
-			it("returns the instance with state set to failed", function () {
+			it("then updates the instance state set to failed", function () {
 				return instanceAdapter.getInstance({ id : newInstance.id })
 				.then(function (response) {
 					expect(terminateInstancesStub.called).to.be.true;
@@ -2161,6 +2162,269 @@ describe("The Rest plugin", function () {
 					expect(response.uri).to.equal(null);
 					expect(response.revision).to.be.above(newInstance.revision);
 				});
+			});
+		});
+
+		describe("when the connection to the database fails", function () {
+			var result;
+			var updateStub;
+
+			before(function () {
+				updateStub = Sinon.stub(instanceAdapter, "updateInstance")
+				.rejects(new Error("Database connection failed."));
+
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					var request = new Request("DELETE", "/v1/instances/" + instance.id);
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response.result;
+				});
+			});
+
+			after(function () {
+				updateStub.restore();
+			});
+
+			it("returns a 500 error", function () {
+				expect(result.statusCode).to.equal(500);
+			});
+		});
+
+		describe("when the database fails after terminateInstances has run", function () {
+			var result;
+			var updateStub;
+			var terminateInstancesStub;
+
+			before(function (done) {
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					updateStub = Sinon.stub(instanceAdapter, "updateInstance").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "terminating",
+							uri      : instance.uri,
+							revision : instance.revision + 1
+						})
+					);
+					updateStub.onCall(1).rejects(new Error("Connection to the database fails."));
+
+					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
+						return Bluebird.resolve()
+						.then(function () {
+							done();
+						});
+					});
+
+					var request = new Request("DELETE", "/v1/instances/" + instance.id);
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response.result;
+				});
+			});
+
+			after(function () {
+				updateStub.restore();
+				terminateInstancesStub.restore();
+			});
+
+			it("terminateInstances is called with instance id", function () {
+				expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+			});
+
+			it("leaves the state unchanged (terminating)", function () {
+				expect(updateStub.callCount).to.equal(2);
+				expect(result.state).to.equal("terminating");
+			});
+		});
+
+		describe("when the database fails after terminateInstances has run, but then recovers", function () {
+			var result;
+			var updateStub;
+			var getStub;
+			var terminateInstancesStub;
+
+			before(function (done) {
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					updateStub = Sinon.stub(instanceAdapter,"updateInstance").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "terminating",
+							uri      : instance.uri,
+							revision : instance.revision + 1
+						})
+					);
+
+					updateStub.onCall(1).rejects(new Error("Simulated Error"));
+					updateStub.onCall(2).returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "failed",
+							uri      : instance.uri,
+							revision : instance.revision + 2
+						})
+						.then(function () {
+							done();
+						})
+					);
+
+					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances", function () {
+						return Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "terminated",
+							uri      : instance.uri,
+							revision : instance.revision + 2
+						});
+					});
+
+					getStub = Sinon.stub(instanceAdapter, "getInstance").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : instance.state,
+							uri      : instance.uri,
+							revision : instance.revision
+						})
+					);
+
+					var request = new Request("DELETE", "/v1/instances/" + instance.id);
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response.result;
+				});
+			});
+
+			after(function () {
+				terminateInstancesStub.restore();
+				updateStub.restore();
+				getStub.restore();
+			});
+
+			it("terminateInstances is called with the instance ID", function () {
+				expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+			});
+
+			it("updateInstance is called with the correct parameters the second time", function () {
+				expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(updateStub.secondCall.args[ 0 ].state).to.equal("terminated");
+				expect(updateStub.secondCall.args[ 0 ].uri).to.equal(null);
+			});
+
+			it("updateInstance is called with the correct parameters the third time", function () {
+				expect(updateStub.thirdCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(updateStub.thirdCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(updateStub.thirdCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(updateStub.thirdCall.args[ 0 ].state).to.equal("failed");
+				expect(updateStub.thirdCall.args[ 0 ].uri).to.equal(null);
+			});
+
+			it("getInstance is called with the correct parameters the second time", function () {
+				expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+			});
+
+			it("changes the state to failed", function () {
+				expect(getStub.callCount).to.equal(2);
+				expect(updateStub.callCount).to.equal(3);
+				//This is returned to the user before the rest of the function is executed
+				expect(result.state).to.equal("terminating");
+			});
+		});
+
+		describe("when the getInstance fails after the second updateInstance fails", function () {
+			var result;
+			var updateStub;
+			var getStub;
+			var terminateInstancesStub;
+
+			before(function () {
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					updateStub = Sinon.stub(instanceAdapter, "updateInstance").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "terminating",
+							uri      : instance.uri,
+							revision : instance.revision + 1
+						})
+					);
+					updateStub.onCall(1).rejects(new Error("Simulated error"));
+
+					getStub = Sinon.stub(instanceAdapter, "getInstance").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : instance.state,
+							uri      : instance.uri,
+							revision : instance.revision
+						})
+					);
+
+					getStub.onCall(1).rejects(new Error("Connection to database has failed"));
+
+					terminateInstancesStub = Sinon.stub(awsAdapter, "terminateInstances").returns(
+						Bluebird.resolve({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "terminated",
+							uri      : instance.uri,
+							revision : instance.revision + 2
+						})
+					);
+
+					var request = new Request("DELETE", "/v1/instances/" + instance.id);
+					return request.inject(server);
+				})
+				.then(function (response) {
+					result = response.result;
+				});
+			});
+
+			after(function () {
+				terminateInstancesStub.restore();
+				updateStub.restore();
+				getStub.restore();
+			});
+
+			it("terminateInstances is called with the instance ID", function () {
+				expect(terminateInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+			});
+
+			it("updateInstance is called with the correct parameters the second time", function () {
+				expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(updateStub.secondCall.args[ 0 ].state).to.equal("terminated");
+				expect(updateStub.secondCall.args[ 0 ].uri).to.equal(null);
+			});
+
+			it("getInstance is called with the correct parameters", function () {
+				expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+			});
+
+			it("leaves the state unchanged(stopping)", function () {
+				expect(getStub.callCount).to.equal(2);
+				expect(updateStub.callCount).to.equal(2);
+				//This is returned to the user before the rest of the function executes
+				expect(result.state).to.equal("terminating");
 			});
 		});
 	});

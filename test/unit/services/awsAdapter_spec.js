@@ -662,6 +662,60 @@ describe("The AwsAdapter class ", function () {
 				expect(result.uri).to.be.null;
 			});
 		});
+
+		describe("faces an error while polling and getInstance does not show state has been updated",
+		function () {
+			var SshPollingStub;
+			var getPublicIPAddressStub;
+			var getInstanceStub;
+			var instanceProp;
+			var result;
+
+			before(function () {
+				return instances.createInstance()
+				.then(function (instance) {
+					instanceProp = instance;
+					SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
+						return Bluebird.reject("Simulated Failure.");
+					});
+
+					getPublicIPAddressStub = Sinon.stub(awsAdapter,"getPublicIPAddress", function () {
+						return Bluebird.resolve(VALID_IP_ADDRESS);
+					});
+
+					getInstanceStub = Sinon.stub(instances, "getInstance", function () {
+						return instances.updateInstance(instance)
+						.then(function (response) {
+							return Bluebird.resolve({
+								id       : response.id,
+								ami      : response.ami,
+								type     : response.type,
+								state    : response.state,
+								uri      : response.uri,
+								revision : response.revision - 1
+							});
+						});
+					});
+				})
+				.then(function () {
+					return awsAdapter.beginPolling(instanceProp);
+				})
+				.catch (function (err) {
+					result = err;
+				});
+			});
+
+			after(function () {
+				SshPollingStub.restore();
+				getPublicIPAddressStub.restore();
+				getInstanceStub.restore();
+			});
+
+			it("fails to update as it has wrong revision number", function () {
+				expect(result).to.be.an.instanceof(Error);
+				expect(result.message).to.match(/\bconcurrency\b/);
+			});
+		});
 	});
 
 	describe("Trying to create awsAdapter Instance", function () {
