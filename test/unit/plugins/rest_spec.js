@@ -45,15 +45,54 @@ describe("The Rest plugin", function () {
 			return server.registerAsync(Rest);
 		});
 
-		after(function () {
-			return server.stopAsync();
-		});
-
 		it("provides the '/' route", function () {
 			return new Request("GET", "/").inject(server)
 			.then(function (response) {
 				expect(response.statusCode, "status").to.equal(200);
 			});
+		});
+	});
+
+	describe("creating a new instance when AWS_DEFAULT_SECURITY_GROUP is not defined", function () {
+		var server = new Hapi.Server();
+		var runInstancesStub;
+		var environment = new Environment();
+		var awsAdapter = new AwsAdapter();
+		var result;
+
+		before(function () {
+
+			environment.delete("AWS_DEFAULT_SECURITY_GROUP");
+			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+			.returns(Bluebird.resolve({
+				id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+				ami      : "ami-d05e75b8",
+				type     : "t2.micro",
+				revision : 0,
+				state    : "pending",
+				uri      : null
+			}));
+
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					awsAdapter : awsAdapter
+				}
+			})
+			.catch(function (error) {
+				result = error;
+			});
+		});
+
+		after(function () {
+			environment.restore();
+			runInstancesStub.restore();
+		});
+
+		it("throws as error indicating the Security Group is not defined", function () {
+			expect(result).to.be.an.instanceof(Error);
+			expect(result.message).to.contain("Security Group not set");
 		});
 	});
 
@@ -82,13 +121,15 @@ describe("The Rest plugin", function () {
 				options  : {
 					awsAdapter : awsAdapter
 				}
+			})
+			.catch(function (error) {
+				console.log(error);
 			});
 		});
 
 		after(function () {
 			environment.restore();
 			runInstancesStub.restore();
-			return server.stopAsync();
 		});
 
 		describe("with valid parameters passed - excluding a security group", function () {
@@ -123,54 +164,8 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("with valid parameters passed - when the default group is not specified", function () {
-
-			before(function () {
-				environment.delete("AWS_DEFAULT_SECURITY_GROUP");
-			});
-
-			after(function () {
-				environment.restore();
-			});
-
-			it("creates the instance and returns the canonical uri", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami           : VALID_AMI,
-					type          : VALID_TYPE,
-					securityGroup : VALID_SEC_GROUP
-				});
-				return request.inject(server)
-				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(500);
-				});
-			});
-		});
-
-		describe("with valid parameters passed - when the default group is not specified", function () {
-
-			before(function () {
-				environment.delete("AWS_DEFAULT_SECURITY_GROUP");
-			});
-
-			after(function () {
-				environment.restore();
-			});
-
-			it("creates the instance and returns the canonical uri", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami  : VALID_AMI,
-					type : VALID_TYPE
-				});
-				return request.inject(server)
-				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(500);
-				});
-			});
-		});
-
 		describe("with no parameters passed", function () {
+
 			it("creates the instance and returns the canonical uri", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json");
 				return request.inject(server)
@@ -183,6 +178,7 @@ describe("The Rest plugin", function () {
 		});
 
 		describe("with invalid parameter(s) passed", function () {
+
 			it("returns an error with statusCode 400", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : INVALID_AMI,
@@ -218,14 +214,9 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		after(function () {
-			return server.stopAsync();
-		});
-
 		describe("when the credentials aren't properly configured", function () {
 
 			var result;
-
 			before(function () {
 				var AuthError  = new Error();
 				AuthError.name = "AuthFailure";
@@ -380,6 +371,7 @@ describe("The Rest plugin", function () {
 		var mapper = new MemoryMapper();
 		var server = new Hapi.Server();
 
+<<<<<<< HEAD
 		before(function () {
 			Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
 			server.connection();
@@ -388,6 +380,10 @@ describe("The Rest plugin", function () {
 				options  : {
 					mapper : mapper
 				}
+=======
+			after(function () {
+				mapper.create.restore();
+>>>>>>> Fixed case where error wasn't caught by test cases. Also removed stopServer when startServer wasn't called
 			});
 		});
 
@@ -424,10 +420,6 @@ describe("The Rest plugin", function () {
 					instances : instanceAdapter
 				}
 			});
-		});
-
-		after(function () {
-			return server.stopAsync();
 		});
 
 		describe("with an invalid instance id", function () {
@@ -500,10 +492,6 @@ describe("The Rest plugin", function () {
 					instances : instanceAdapter
 				}
 			});
-		});
-
-		after(function () {
-			return server.stopAsync();
 		});
 
 		describe("with a valid type", function () {
@@ -734,10 +722,6 @@ describe("The Rest plugin", function () {
 					instances : instances
 				}
 			});
-		});
-
-		after(function () {
-			return server.stopAsync();
 		});
 
 		describe("failing to find an instance for specified instanceId", function () {
@@ -2457,10 +2441,6 @@ describe("The Rest plugin", function () {
 					awsAdapter : awsAdapter
 				}
 			});
-		});
-
-		after(function () {
-			return server.stopAsync();
 		});
 
 		describe("with an invalid instance id", function () {
