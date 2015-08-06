@@ -1972,7 +1972,14 @@ describe("The Rest plugin", function () {
 						revision   = instance.revision;
 						//revision reflects the document is updated twice when startInstances() is successful.
 						startInstancesStub = Sinon.stub(awsAdapter, "startInstances", function () {
-							return Bluebird.resolve(VALID_IP_ADDRESS)
+							return Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "running",
+								uri      : "https://" + VALID_IP_ADDRESS,
+								revision : instance.revision + 2
+							})
 							.then(function (result) {
 								done();
 								return result;
@@ -1988,6 +1995,7 @@ describe("The Rest plugin", function () {
 							uri      : "https://" + VALID_IP_ADDRESS,
 							revision : instance.revision + 2
 						});
+
 						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 						.payload({
 							ami      : instance.ami,
@@ -2008,20 +2016,16 @@ describe("The Rest plugin", function () {
 				});
 
 				it("startInstances is called with the correct parameters", function () {
-					expect(startInstancesStub.firstCall.args[ 0 ]).to.equal(updatedInstance.id);
+					expect(startInstancesStub.firstCall.args[ 0 ].id).to.equal(updatedInstance.id);
+					expect(startInstancesStub.firstCall.args[ 0 ].ami).to.equal(updatedInstance.ami);
+					expect(startInstancesStub.firstCall.args[ 0 ].type).to.equal(updatedInstance.type);
+					expect(startInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+					expect(startInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+					expect(startInstancesStub.firstCall.args[ 0 ].revision).to.equal(revision + 1);
 				});
 
-				it("the state is set to running", function () {
-					return instances.getInstance({ id : instanceID })
-					.then(function (response) {
-						expect(response.id).to.equal(updatedInstance.id);
-						expect(response.ami).to.equal(updatedInstance.ami);
-						expect(response.type).to.equal(updatedInstance.type);
-						expect(response.state).to.equal(updatedInstance.state);
-						expect(response.uri).to.equal(updatedInstance.uri);
-						expect(response.revision).to.be.above(revision);
-						expect(responseCode).to.equal(200);
-					});
+				it("a reply with 200 OK is sent", function () {
+					expect(responseCode).to.equal(200);
 				});
 			});
 
@@ -2088,7 +2092,14 @@ describe("The Rest plugin", function () {
 						//revision reflects the document is updated twice when startInstances() is successful.
 						startInstancesStub = Sinon.stub(awsAdapter, "startInstances", function () {
 
-							return Bluebird.resolve(VALID_IP_ADDRESS)
+							return Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "running",
+								uri      : "https://" + VALID_IP_ADDRESS,
+								revision : instance.revision + 2
+							})
 							.then(function (result) {
 								done();
 								return result;
@@ -2132,12 +2143,23 @@ describe("The Rest plugin", function () {
 				var startInstancesStub;
 				var instanceID;
 				var response;
+				var updatedInstance;
 
 				before(function () {
 					startInstancesStub = Sinon.stub(awsAdapter, "startInstances").rejects(new Error("AWS Error"));
 					return instances.createInstance()
 					.then(function (instance) {
 						instanceID = instance.id;
+
+						updatedInstance = new Instance({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "pending",
+							uri      : null,
+							revision : instance.revision + 1
+						});
+
 						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
 						.payload({
 							ami      : instance.ami,
@@ -2157,8 +2179,8 @@ describe("The Rest plugin", function () {
 					startInstancesStub.restore();
 				});
 
-				it("startInstances is called with the the instanceID", function () {
-					expect(startInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
+				it("startInstances is called with the correct parameters", function () {
+					expect(startInstancesStub.firstCall.args[ 0 ]).to.deep.equal(updatedInstance);
 				});
 
 				it("returns the instance with state set to pending", function () {
@@ -2167,15 +2189,6 @@ describe("The Rest plugin", function () {
 					expect(response.statusCode).to.equal(200);
 				});
 
-				it("returns the instance with state set to failed", function () {
-					return instances.getInstance({ id : instanceID })
-					.then(function (response) {
-						expect(response.id).to.equal(instanceID);
-						expect(response.state).to.equal("failed");
-						expect(response.uri).to.equal(null);
-					});
-
-				});
 			});
 
 			describe("when the connection to the database fails", function () {
@@ -2225,358 +2238,6 @@ describe("The Rest plugin", function () {
 				});
 			});
 
-			describe("when the database completely fails after startInstances has run", function () {
-
-				var result;
-				var updateStub;
-				var startInstancesStub;
-				var server     = new Hapi.Server();
-				var instances  = new InstanceAdapter();
-				var awsAdapter = new AwsAdapter();
-				before(function (done) {
-
-					return instances.createInstance()
-					.then(function (instance) {
-						updateStub = Sinon.stub(instances, "updateInstance").returns(
-							Bluebird.resolve({
-								id       : instance.id,
-								ami      : instance.ami,
-								type     : instance.type,
-								state    : "pending",
-								uri      : instance.uri,
-								revision : instance.revision + 1
-							})
-						);
-						updateStub.onCall(1).rejects(new Error("Connection to the database fails."));
-
-						//revision reflects the document is updated twice when startInstances() is successful.
-						startInstancesStub = Sinon.stub(awsAdapter, "startInstances", function () {
-							return Bluebird.resolve(VALID_IP_ADDRESS)
-							.then(function (result) {
-								done();
-								return result;
-							});
-						});
-
-						server.connection();
-						server.registerAsync({
-							register : Rest,
-							options  : {
-								instances  : instances,
-								awsAdapter : awsAdapter
-							}
-						});
-
-						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
-						.payload({
-							ami      : instance.ami,
-							type     : instance.type,
-							uri      : instance.uri,
-							state    : "pending",
-							revision : instance.revision
-						});
-						return request.inject(server);
-					})
-					.then(function (response) {
-						result = response.result;
-					});
-				});
-
-				after(function () {
-					startInstancesStub.restore();
-					updateStub.restore();
-				});
-
-				it("updateInstances is called with the correct parameters", function () {
-					expect(updateStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
-					expect(updateStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
-					expect(updateStub.firstCall.args[ 0 ].state).to.equal("pending");
-					expect(updateStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
-					expect(updateStub.firstCall.args[ 0 ].uri).to.equal(null);
-				});
-
-				it("updateInstances is called with the correct parameters", function () {
-					expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
-					expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
-					expect(updateStub.secondCall.args[ 0 ].state).to.equal("running");
-					expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
-					expect(updateStub.secondCall.args[ 0 ].uri).to.equal("https://" + VALID_IP_ADDRESS);
-				});
-
-				it("startInstances is called with the the instanceID", function () {
-					expect(startInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
-				});
-
-				it("leaves the state unchanged(pending)", function () {
-					expect(updateStub.callCount).to.equal(2);
-					expect(result.state).to.equal("pending");
-				});
-			});
-
-			describe("when the database fails after startInstances has run, but then recovers", function () {
-
-				var result;
-				var updateStub;
-				var getStub;
-				var startInstancesStub;
-				var server     = new Hapi.Server();
-				var instances  = new InstanceAdapter();
-				var awsAdapter = new AwsAdapter();
-				before(function (done) {
-
-					return instances.createInstance()
-					.then(function (instance) {
-						updateStub = Sinon.stub(instances, "updateInstance").returns(
-							Bluebird.resolve({
-								id       : instance.id,
-								ami      : instance.ami,
-								type     : instance.type,
-								state    : "pending",
-								uri      : instance.uri,
-								revision : instance.revision + 1
-							})
-						);
-
-						updateStub.onCall(1).rejects(new Error("Simulated Error"));
-
-						updateStub.onCall(2).returns(
-							Bluebird.resolve({
-								id       : instance.id,
-								ami      : instance.ami,
-								type     : instance.type,
-								state    : "failed",
-								uri      : null,
-								revision : instance.revision + 2
-							})
-							.then(function () {
-								done();
-							})
-						);
-						//revision reflects the document is updated twice when startInstances() is successful.
-						startInstancesStub = Sinon.stub(awsAdapter, "startInstances").returns(
-							Bluebird.resolve(VALID_IP_ADDRESS)
-						);
-
-						getStub = Sinon.stub(instances, "getInstance").returns(
-							Bluebird.resolve({
-								id       : instance.id,
-								ami      : instance.ami,
-								type     : instance.type,
-								state    : instance.state,
-								uri      : instance.uri,
-								revision : instance.revision
-							})
-						);
-
-						server.connection();
-						server.registerAsync({
-							register : Rest,
-							options  : {
-								instances  : instances,
-								awsAdapter : awsAdapter
-							}
-						});
-
-						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
-						.payload({
-							ami      : instance.ami,
-							type     : instance.type,
-							uri      : instance.uri,
-							state    : "pending",
-							revision : instance.revision
-						});
-						return request.inject(server);
-					})
-					.then(function (response) {
-						result = response.result;
-					});
-				});
-
-				after(function () {
-					startInstancesStub.restore();
-					updateStub.restore();
-					getStub.restore();
-				});
-
-				it("startInstances is called with the instance ID", function () {
-					expect(startInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
-				});
-
-				it("updateInstance is called with the correct parameters the second time", function () {
-					expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
-					expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
-					expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
-					expect(updateStub.secondCall.args[ 0 ].state).to.equal("running");
-					expect(updateStub.secondCall.args[ 0 ].uri).to.equal("https://" + VALID_IP_ADDRESS);
-				});
-
-				it("updateInstance is called with the correct parameters the third time", function () {
-					expect(updateStub.thirdCall.args[ 0 ].id).to.match(ID_REGEX);
-					expect(updateStub.thirdCall.args[ 0 ].ami).to.equal(VALID_AMI);
-					expect(updateStub.thirdCall.args[ 0 ].type).to.equal(VALID_TYPE);
-					expect(updateStub.thirdCall.args[ 0 ].state).to.equal("failed");
-					expect(updateStub.thirdCall.args[ 0 ].uri).to.equal(null);
-				});
-
-				it("getInstance is called with the correct parameters the second time", function () {
-					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
-				});
-
-				it("changes the state to failed", function () {
-					expect(getStub.callCount).to.equal(1);
-					expect(updateStub.callCount).to.equal(3);
-					//This is returned to the user before the rest of the function is executed
-					expect(result.state).to.equal("pending");
-				});
-			});
-
-			describe("when getInstance fails after the second updateInstance fails", function () {
-
-				var result;
-				var updateStub;
-				var getStub;
-				var startInstancesStub;
-				var server     = new Hapi.Server();
-				var instances  = new InstanceAdapter();
-				var awsAdapter = new AwsAdapter();
-
-				before(function () {
-
-					return instances.createInstance()
-					.then(function (instance) {
-						updateStub = Sinon.stub(instances, "updateInstance").returns(
-							Bluebird.resolve({
-								id       : instance.id,
-								ami      : instance.ami,
-								type     : instance.type,
-								state    : "pending",
-								uri      : "https://" + VALID_IP_ADDRESS,
-								revision : instance.revision + 1
-							})
-						);
-						updateStub.onCall(1).rejects(new Error("Simulated error"));
-
-						getStub = Sinon.stub(instances, "getInstance")
-						.rejects(new Error("Connection to the database has failed."));
-
-						//revision reflects the document is updated twice when terminateInstances() is successful.
-						startInstancesStub = Sinon.stub(awsAdapter, "startInstances").returns(
-							Bluebird.resolve(VALID_IP_ADDRESS)
-						);
-
-						server.connection();
-						server.registerAsync({
-							register : Rest,
-							options  : {
-								instances  : instances,
-								awsAdapter : awsAdapter
-							}
-						});
-
-						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
-						.payload({
-							ami      : instance.ami,
-							type     : instance.type,
-							uri      : instance.uri,
-							state    : "pending",
-							revision : instance.revision
-						});
-						return request.inject(server);
-					})
-					.then(function (response) {
-						result = response.result;
-					});
-				});
-
-				after(function () {
-					startInstancesStub.restore();
-					updateStub.restore();
-					getStub.restore();
-				});
-
-				it("startInstances is called with the instance ID", function () {
-					expect(startInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
-				});
-
-				it("updateInstance is called with the correct parameters the second time", function () {
-					expect(updateStub.secondCall.args[ 0 ].id).to.match(ID_REGEX);
-					expect(updateStub.secondCall.args[ 0 ].ami).to.equal(VALID_AMI);
-					expect(updateStub.secondCall.args[ 0 ].type).to.equal(VALID_TYPE);
-					expect(updateStub.secondCall.args[ 0 ].state).to.equal("running");
-					expect(updateStub.secondCall.args[ 0 ].uri).to.equal("https://" + VALID_IP_ADDRESS);
-				});
-
-				it("getInstance is called with the correct parameters the second time", function () {
-					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
-				});
-
-				it("leaves the state unchanged(pending)", function () {
-					expect(getStub.callCount).to.equal(1);
-					expect(updateStub.callCount).to.equal(2);
-					//This is returned to the user before the rest of the function executes
-					expect(result.state).to.equal("pending");
-				});
-			});
-			describe("when the database and startInstances fail", function () {
-
-				var response;
-				var getStub;
-				var startInstancesStub;
-				var server     = new Hapi.Server();
-				var instances  = new InstanceAdapter();
-				var awsAdapter = new AwsAdapter();
-				before(function () {
-
-					return instances.createInstance()
-					.then(function (instance) {
-						getStub = Sinon.stub(instances, "getInstance")
-						.rejects(new Error("Connection to the database fails."));
-
-						startInstancesStub = Sinon.stub(awsAdapter, "startInstances")
-						.rejects(new Error("AWS Error"));
-
-						server.connection();
-						server.registerAsync({
-							register : Rest,
-							options  : {
-								instances  : instances,
-								awsAdapter : awsAdapter
-							}
-						});
-
-						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
-						.payload({
-							ami      : instance.ami,
-							type     : instance.type,
-							uri      : instance.uri,
-							state    : "pending",
-							revision : instance.revision
-						});
-						return request.inject(server);
-					})
-					.then(function (result) {
-						response = result;
-					});
-				});
-
-				after(function () {
-					startInstancesStub.restore();
-					getStub.restore();
-				});
-
-				it("startInstances is called with the instance ID", function () {
-					expect(startInstancesStub.firstCall.args[ 0 ]).to.match(ID_REGEX);
-				});
-
-				it("getInstance is called with the correct parameters the second time", function () {
-					expect(getStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
-				});
-
-				it("leaves the state unchanged(pending)", function () {
-					expect(response.result.state).to.equal("pending");
-					expect(response.statusCode).to.equal(200);
-				});
-			});
 		});
 
 		describe("setting the status of an instance to a state not handled by update", function () {

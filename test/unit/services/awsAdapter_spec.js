@@ -1060,13 +1060,22 @@ describe("The AwsAdapter class ", function () {
 
 		var describeInstancesStub;
 		var startInstancesStub;
-		var waitForStub;
+		var beginPollingStub;
+		var defaultInstance = new Instance({
+				id       : VALID_ID,
+				ami      : DEFAULT_AMI,
+				type     : DEFAULT_TYPE,
+				state    : "pending",
+				uri      : null,
+				revision : 1
+			});
 
 		describe("when the instance is stopped", function () {
 			var result;
 			var awsAdapter = new AwsAdapter(awsOptions);
 
 			before(function () {
+
 				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
 					var data = { Reservations : [ { Instances : [ {
 						InstanceId      : VALID_AWS_ID,
@@ -1080,15 +1089,9 @@ describe("The AwsAdapter class ", function () {
 					return Bluebird.resolve(data);
 				});
 
-				waitForStub = Sinon.stub(ec2, "waitForAsync", function () {
-					var data = { Reservations : [ { Instances : [ {
-						InstanceId : VALID_AWS_ID,
-						state      : "running"
-					} ] } ] };
-					return Bluebird.resolve(data);
-				});
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
 
-				return awsAdapter.startInstances(VALID_ID)
+				return awsAdapter.startInstances(defaultInstance)
 				.then(function (response) {
 					result = response;
 				});
@@ -1097,7 +1100,63 @@ describe("The AwsAdapter class ", function () {
 			after(function () {
 				describeInstancesStub.restore();
 				startInstancesStub.restore();
-				waitForStub.restore();
+				beginPollingStub.restore();
+			});
+
+			it("gets the details of the instance, sets the state on the AWS console to running", function () {
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			});
+
+			it("beginPolling is called with the correct parameters", function () {
+				expect(beginPollingStub.firstCall.args[ 0 ].id).to.equal(defaultInstance.id);
+				expect(beginPollingStub.firstCall.args[ 0 ].ami).to.equal(defaultInstance.ami);
+				expect(beginPollingStub.firstCall.args[ 0 ].state).to.equal(defaultInstance.state);
+				expect(beginPollingStub.firstCall.args[ 0 ].type).to.equal(defaultInstance.type);
+				expect(beginPollingStub.firstCall.args[ 0 ].uri).to.equal(defaultInstance.uri);
+				expect(beginPollingStub.firstCall.args[ 0 ].revision).to.equal(defaultInstance.revision);
+				expect(beginPollingStub.firstCall.args[ 0 ].instanceId).to.equal(VALID_AWS_ID);
+			});
+
+			it("starts the instance", function () {
+				expect(startInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
+			});
+
+		});
+
+		describe("when the polling fails", function () {
+
+			var result;
+			var awsAdapter = new AwsAdapter(awsOptions);
+
+			before(function () {
+
+				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
+					var data = { Reservations : [ { Instances : [ {
+						InstanceId      : VALID_AWS_ID,
+						PublicIpAddress : VALID_IP_ADDRESS
+					} ] } ] };
+					return Bluebird.resolve(data);
+				});
+
+				startInstancesStub = Sinon.stub(ec2, "startInstancesAsync", function () {
+					var data = { Instances : [ { InstanceId : VALID_AWS_ID } ] };
+					return Bluebird.resolve(data);
+				});
+
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling")
+				.rejects("An error occurred with polling");
+
+				return awsAdapter.startInstances(defaultInstance)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				describeInstancesStub.restore();
+				startInstancesStub.restore();
+				beginPollingStub.restore();
 			});
 
 			it("gets the details of the instance, sets the state on the AWS console to running", function () {
@@ -1109,15 +1168,16 @@ describe("The AwsAdapter class ", function () {
 				expect(startInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
 			});
 
-			it("waits for the instance to be running", function () {
-				expect(waitForStub.args[ 0 ][ 0 ]).to.equal("instanceRunning");
-				expect(waitForStub.args[ 0 ][ 1 ].Filters[ 0 ].Name).to.equal("tag:ID");
-				expect(waitForStub.args[ 0 ][ 1 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			it("beginPolling is called with the correct parameters", function () {
+				expect(beginPollingStub.firstCall.args[ 0 ].id).to.equal(defaultInstance.id);
+				expect(beginPollingStub.firstCall.args[ 0 ].ami).to.equal(defaultInstance.ami);
+				expect(beginPollingStub.firstCall.args[ 0 ].state).to.equal(defaultInstance.state);
+				expect(beginPollingStub.firstCall.args[ 0 ].type).to.equal(defaultInstance.type);
+				expect(beginPollingStub.firstCall.args[ 0 ].uri).to.equal(defaultInstance.uri);
+				expect(beginPollingStub.firstCall.args[ 0 ].revision).to.equal(defaultInstance.revision);
+				expect(beginPollingStub.firstCall.args[ 0 ].instanceId).to.equal(VALID_AWS_ID);
 			});
 
-			it("gets the new IP address from AWS", function () {
-				expect(result).to.equal(VALID_IP_ADDRESS);
-			});
 		});
 
 		describe("when the instance doesn't exist", function () {
@@ -1129,7 +1189,7 @@ describe("The AwsAdapter class ", function () {
 				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync")
 				.rejects(new Error("InvalidInstance.NotFound"));
 
-				return awsAdapter.startInstances(VALID_ID)
+				return awsAdapter.startInstances(defaultInstance)
 				.catch(function (error) {
 					result = error;
 				});
@@ -1144,55 +1204,6 @@ describe("The AwsAdapter class ", function () {
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
 				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
 				expect(result).to.match(/InvalidInstance.NotFound/);
-			});
-
-		});
-
-		describe("when waitFor times out", function () {
-			var result;
-			var awsAdapter = new AwsAdapter(awsOptions);
-
-			before(function () {
-				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
-					var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
-					return Bluebird.resolve(data);
-				});
-
-				startInstancesStub = Sinon.stub(ec2, "startInstancesAsync", function () {
-					var data = { Instances : [ { InstanceId : VALID_AWS_ID } ] };
-					return Bluebird.resolve(data);
-				});
-
-				waitForStub = Sinon.stub(ec2, "waitForAsync", function () {
-					var error = new Error("TimeoutError");
-					error.message = "The request to stop the instance timed out.";
-					return Bluebird.reject(error);
-				});
-
-				return awsAdapter.startInstances(VALID_ID)
-				.catch(function (response) {
-					result = response;
-				});
-
-			});
-
-			after(function () {
-				describeInstancesStub.restore();
-				startInstancesStub.restore();
-				waitForStub.restore();
-			});
-
-			it("gets the instance details", function () {
-				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
-				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
-			});
-
-			it("starts the instance", function () {
-				expect(startInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
-			});
-
-			it("times out", function () {
-				expect(result.message).to.contain("timed out");
 			});
 
 		});

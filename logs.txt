@@ -1,0 +1,36 @@
+
+> service-maker@2.0.0 test C:\Users\amadan\Projects\service-maker
+> grunt
+
+[4mRunning "jshint:src" (jshint) task[24m
+
+[1m   lib/services/awsAdapter.js[22m
+    276 |[90m            .catch(function (error) {[39m
+                     ^ Expected an identifier and instead saw '.'.
+    276 |[90m            .catch(function (error) {[39m
+                     ^ Expected an assignment or function call and instead saw an expression.
+    276 |[90m            .catch(function (error) {[39m
+                      ^ Missing semicolon.
+    276 |[90m            .catch(function (error) {[39m
+                      ^ Expected an identifier and instead saw 'catch'.
+    276 |[90m            .catch(function (error) {[39m
+                           ^ Expected an operator and instead saw '('.
+    276 |[90m            .catch(function (error) {[39m
+                           ^ Expected an assignment or function call and instead saw an expression.
+    276 |[90m            .catch(function (error) {[39m
+                            ^ Missing semicolon.
+    276 |[90m            .catch(function (error) {[39m
+                                     ^ Missing name in function declaration.
+    278 |[90m            })[39m
+                      ^ Expected an identifier and instead saw ')'.
+    278 |[90m            })[39m
+                      ^ Expected an assignment or function call and instead saw an expression.
+    278 |[90m            })[39m
+                       ^ Missing semicolon.
+    276 |[90m            .catch(function (error) {[39m
+                            ^ 'function' is defined but never used.
+
+[31m>> [39m12 errors in 7 files
+[33mWarning: Task "jshint:src" failed. Use --force to continue.[39m
+
+[31mAborted due to warnings.[39m
