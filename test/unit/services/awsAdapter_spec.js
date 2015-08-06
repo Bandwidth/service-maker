@@ -530,39 +530,148 @@ describe("The AwsAdapter class ", function () {
 			});
 		});
 
-		describe("faces an error while polling and updating instance fails as well", function () {
-			var SshPollingStub;
-			var updateInstanceStub;
-			var instanceProp;
-			var result;
+		describe("faces an error while polling", function () {
+			describe("and updating instance fails as well", function () {
+				var SshPollingStub;
+				var updateInstanceStub;
+				var instanceProp;
+				var result;
 
-			before(function () {
-				SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
-					return Bluebird.reject(new Error("Simulated Failure"));
+				before(function () {
+					SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
+						return Bluebird.reject(new Error("Simulated Failure"));
+					});
+
+					updateInstanceStub = Sinon.stub(instances, "updateInstance")
+					.rejects(new Error("Simulated Failure."));
+
+					return instances.createInstance("ami-d05e75b8","t2.micro")
+					.then(function (data) {
+						instanceProp  = JSON.parse(JSON.stringify(data));
+						instanceProp.instanceID = VALID_EC2_INSTANCE;
+						return awsAdapter.beginPolling(instanceProp);
+					})
+					.catch (function (error) {
+						result = error;
+					});
 				});
 
-				updateInstanceStub = Sinon.stub(instances, "updateInstance").rejects(new Error("Simulated Failure."));
+				after(function () {
+					SshPollingStub.restore();
+					updateInstanceStub.restore();
+				});
 
-				return instances.createInstance("ami-d05e75b8","t2.micro")
-				.then(function (data) {
-					instanceProp  = JSON.parse(JSON.stringify(data));
-					instanceProp.instanceID = VALID_EC2_INSTANCE;
-					return awsAdapter.beginPolling(instanceProp);
-				})
-				.catch (function (error) {
-					result = error;
+				it("fails to update the state and uri of the instance", function () {
+
+					expect(result).to.be.an.instanceof(Error);
+					expect(result.message).to.be.equal("Simulated Failure.");
 				});
 			});
 
-			after(function () {
-				SshPollingStub.restore();
-				updateInstanceStub.restore();
+			describe("and tries to update an instance which has already been modified", function () {
+				var SshPollingStub;
+				var getPublicIPAddressStub;
+				var instanceProp;
+				var result;
+
+				before(function () {
+					SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
+						return Bluebird.reject("Simulated Failure.");
+					});
+
+					getPublicIPAddressStub = Sinon.stub(awsAdapter,"getPublicIPAddress", function () {
+						return Bluebird.resolve(VALID_IP_ADDRESS);
+					});
+
+					return instances.createInstance("ami-d05e75b8","t2.micro")
+					.then(function (data) {
+						var updatedInstance = new Instance({
+							id    : data.id,
+							type  : data.type,
+							ami   : data.ami,
+							state : "terminating",
+							uri   : data.uri
+						});
+						instances.updateInstance(updatedInstance);
+						instanceProp  = JSON.parse(JSON.stringify(data));
+						instanceProp.instanceID = VALID_EC2_INSTANCE;
+						return awsAdapter.beginPolling(instanceProp);
+					})
+					.then(function (response) {
+						result = response;
+					});
+				});
+
+				after(function () {
+					SshPollingStub.restore();
+					getPublicIPAddressStub.restore();
+				});
+
+				it("does not update the current instance status", function () {
+					expect(result.id).to.equal(instanceProp.id);
+					expect(result.type).to.equal(instanceProp.type);
+					expect(result.ami).to.equal(instanceProp.ami);
+					expect(result.state).to.equal("terminating");
+					expect(result.uri).to.be.null;
+				});
 			});
 
-			it("fails to update the state and uri of the instance", function () {
+			describe("and an out-of-band update has occurred", function () {
+				//This test case is to verify that updateInstance throws an error when it has an incorrect
+				//version of the current instance.
+				var SshPollingStub;
+				var getPublicIPAddressStub;
+				var getInstanceStub;
+				var instanceProp;
+				var result;
 
-				expect(result).to.be.an.instanceof(Error);
-				expect(result.message).to.be.equal("Simulated Failure.");
+				before(function () {
+					return instances.createInstance()
+					.then(function (instance) {
+						instanceProp = instance;
+						SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
+							return Bluebird.reject("Simulated Failure.");
+						});
+
+						getPublicIPAddressStub = Sinon.stub(awsAdapter,"getPublicIPAddress", function () {
+							return Bluebird.resolve(VALID_IP_ADDRESS);
+						});
+
+						getInstanceStub = Sinon.stub(instances, "getInstance", function () {
+							//This is to simulate the case where a getInstance is performed, followed by an
+							//updateInstance by another request. Now when updateInstance is called it will fail
+							//as it does not have the correct version number.
+							return instances.updateInstance(instance)
+							.then(function (response) {
+								return Bluebird.resolve({
+									id       : response.id,
+									ami      : response.ami,
+									type     : response.type,
+									state    : response.state,
+									uri      : response.uri,
+									revision : response.revision - 1
+								});
+							});
+						});
+					})
+					.then(function () {
+						return awsAdapter.beginPolling(instanceProp);
+					})
+					.catch (function (err) {
+						result = err;
+					});
+				});
+
+				after(function () {
+					SshPollingStub.restore();
+					getPublicIPAddressStub.restore();
+					getInstanceStub.restore();
+				});
+
+				it("fails to update as it has wrong revision number", function () {
+					expect(result).to.be.an.instanceof(Error);
+					expect(result.message).to.match(/\bconcurrency\b/);
+				});
 			});
 		});
 
@@ -611,109 +720,6 @@ describe("The AwsAdapter class ", function () {
 				expect(result.ami).to.equal(instanceProp.ami);
 				expect(result.state).to.equal("terminating");
 				expect(result.uri).to.be.null;
-			});
-		});
-
-		describe("faces an error while polling and tries to update an instance which has already been modified",
-		function () {
-			var SshPollingStub;
-			var getPublicIPAddressStub;
-			var instanceProp;
-			var result;
-
-			before(function () {
-				SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
-					return Bluebird.reject("Simulated Failure.");
-				});
-
-				getPublicIPAddressStub = Sinon.stub(awsAdapter,"getPublicIPAddress", function () {
-					return Bluebird.resolve(VALID_IP_ADDRESS);
-				});
-
-				return instances.createInstance("ami-d05e75b8","t2.micro")
-				.then(function (data) {
-					var updatedInstance = new Instance({
-						id    : data.id,
-						type  : data.type,
-						ami   : data.ami,
-						state : "terminating",
-						uri   : data.uri
-					});
-					instances.updateInstance(updatedInstance);
-					instanceProp  = JSON.parse(JSON.stringify(data));
-					instanceProp.instanceID = VALID_EC2_INSTANCE;
-					return awsAdapter.beginPolling(instanceProp);
-				})
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				SshPollingStub.restore();
-				getPublicIPAddressStub.restore();
-			});
-
-			it("does not update the current instance status", function () {
-				expect(result.id).to.equal(instanceProp.id);
-				expect(result.type).to.equal(instanceProp.type);
-				expect(result.ami).to.equal(instanceProp.ami);
-				expect(result.state).to.equal("terminating");
-				expect(result.uri).to.be.null;
-			});
-		});
-
-		describe("faces an error while polling and getInstance does not show state has been updated",
-		function () {
-			var SshPollingStub;
-			var getPublicIPAddressStub;
-			var getInstanceStub;
-			var instanceProp;
-			var result;
-
-			before(function () {
-				return instances.createInstance()
-				.then(function (instance) {
-					instanceProp = instance;
-					SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
-						return Bluebird.reject("Simulated Failure.");
-					});
-
-					getPublicIPAddressStub = Sinon.stub(awsAdapter,"getPublicIPAddress", function () {
-						return Bluebird.resolve(VALID_IP_ADDRESS);
-					});
-
-					getInstanceStub = Sinon.stub(instances, "getInstance", function () {
-						return instances.updateInstance(instance)
-						.then(function (response) {
-							return Bluebird.resolve({
-								id       : response.id,
-								ami      : response.ami,
-								type     : response.type,
-								state    : response.state,
-								uri      : response.uri,
-								revision : response.revision - 1
-							});
-						});
-					});
-				})
-				.then(function () {
-					return awsAdapter.beginPolling(instanceProp);
-				})
-				.catch (function (err) {
-					result = err;
-				});
-			});
-
-			after(function () {
-				SshPollingStub.restore();
-				getPublicIPAddressStub.restore();
-				getInstanceStub.restore();
-			});
-
-			it("fails to update as it has wrong revision number", function () {
-				expect(result).to.be.an.instanceof(Error);
-				expect(result.message).to.match(/\bconcurrency\b/);
 			});
 		});
 	});
