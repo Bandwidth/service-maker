@@ -38,11 +38,18 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("when registered", function () {
-		var server = new Hapi.Server();
+		var server      = new Hapi.Server();
+		var environment = new Environment();
 
 		before(function () {
 			server.connection();
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
+
 			return server.registerAsync(Rest);
+		});
+
+		after(function () {
+			environment.restore();
 		});
 
 		it("provides the '/' route", function () {
@@ -199,10 +206,13 @@ describe("The Rest plugin", function () {
 	describe("fails in creating a new instance", function () {
 		var server = new Hapi.Server();
 		var runInstancesStub;
+		var environment = new Environment();
 
 		var awsAdapter = new AwsAdapter();
 
 		before(function () {
+
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
 			server.connection();
 
@@ -212,6 +222,10 @@ describe("The Rest plugin", function () {
 					awsAdapter : awsAdapter
 				}
 			});
+		});
+
+		after(function () {
+			environment.restore();
 		});
 
 		describe("when the credentials aren't properly configured", function () {
@@ -310,7 +324,7 @@ describe("The Rest plugin", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal("t2.notExist");
 				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
 				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
-				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("default-group");
 			});
 
 			it("returns an error with statusCode 400", function () {
@@ -368,28 +382,26 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("when there is a problem with the database connection", function () {
-		var mapper = new MemoryMapper();
-		var server = new Hapi.Server();
+		var mapper      = new MemoryMapper();
+		var server      = new Hapi.Server();
+		var environment = new Environment();
 
-<<<<<<< HEAD
 		before(function () {
 			Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
+
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
 				options  : {
 					mapper : mapper
 				}
-=======
-			after(function () {
-				mapper.create.restore();
->>>>>>> Fixed case where error wasn't caught by test cases. Also removed stopServer when startServer wasn't called
 			});
 		});
 
 		after(function () {
+			environment.restore();
 			mapper.create.restore();
-			return server.stopAsync();
 		});
 
 		it("returns an internal server error with status code 500", function () {
@@ -408,10 +420,12 @@ describe("The Rest plugin", function () {
 
 	describe("getting an instance", function () {
 
-		var server = new Hapi.Server();
+		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
-
+		var environment     = new Environment();
 		before(function () {
+
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
 			server.connection();
 			return server.registerAsync({
@@ -420,6 +434,10 @@ describe("The Rest plugin", function () {
 					instances : instanceAdapter
 				}
 			});
+		});
+
+		after(function () {
+			environment.restore();
 		});
 
 		describe("with an invalid instance id", function () {
@@ -483,15 +501,24 @@ describe("The Rest plugin", function () {
 
 		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
+		var environment     = new Environment();
 
 		before(function () {
+
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
+
 			server.connection();
+
 			return server.registerAsync({
 				register : Rest,
 				options  : {
 					instances : instanceAdapter
 				}
 			});
+		});
+
+		after(function () {
+			environment.restore();
 		});
 
 		describe("with a valid type", function () {
@@ -711,10 +738,12 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("encountering an internal error", function () {
-		var server    = new Hapi.Server();
-		var instances = new InstanceAdapter();
-
+		var server      = new Hapi.Server();
+		var instances   = new InstanceAdapter();
+		var environment = new Environment();
 		before(function () {
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
+
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
@@ -722,6 +751,10 @@ describe("The Rest plugin", function () {
 					instances : instances
 				}
 			});
+		});
+
+		after(function () {
+			environment.restore();
 		});
 
 		describe("failing to find an instance for specified instanceId", function () {
@@ -770,11 +803,13 @@ describe("The Rest plugin", function () {
 
 	describe("updating a created instance", function () {
 
-		var server     = new Hapi.Server();
-		var instances  = new InstanceAdapter();
-		var awsAdapter = new AwsAdapter();
-
+		var server      = new Hapi.Server();
+		var instances   = new InstanceAdapter();
+		var awsAdapter  = new AwsAdapter();
+		var environment = new Environment();
 		before(function () {
+
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
 			server.connection();
 			return server.registerAsync({
@@ -784,6 +819,10 @@ describe("The Rest plugin", function () {
 					awsAdapter : awsAdapter
 				}
 			});
+		});
+
+		after(function () {
+			environment.restore();
 		});
 
 		describe("setting the state of a created instance to terminated", function () {
@@ -2430,8 +2469,9 @@ describe("The Rest plugin", function () {
 		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
 		var awsAdapter      = new AwsAdapter();
-
+		var environment     = new Environment();
 		before(function () {
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
 			server.connection();
 			return server.registerAsync({
@@ -2441,6 +2481,10 @@ describe("The Rest plugin", function () {
 					awsAdapter : awsAdapter
 				}
 			});
+		});
+
+		after(function () {
+			environment.restore();
 		});
 
 		describe("with an invalid instance id", function () {
