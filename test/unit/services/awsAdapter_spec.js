@@ -421,7 +421,6 @@ describe("The AwsAdapter class ", function () {
 				var instance = { id : "wrongInstance" };
 				return awsAdapter.beginPolling(instance)
 				.catch(function (error) {
-					console.log("dsfdsfdsF" + error);
 					result = error;
 				});
 			});
