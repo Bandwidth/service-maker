@@ -414,6 +414,25 @@ describe("The AwsAdapter class ", function () {
 
 		var awsAdapter = new AwsAdapter(awsOptions);
 
+		describe("with incorrect parameters", function () {
+			var result;
+
+			before(function () {
+				var instance = { id : "wrongInstance" };
+				return awsAdapter.beginPolling(instance)
+				.catch(function (error) {
+					console.log("dsfdsfdsF" + error);
+					result = error;
+				});
+			});
+
+			it("fails", function () {
+				expect(result).to.be.an.instanceof(Error);
+				expect(result.message).to.contain("\"type\" is required");
+			});
+
+		});
+
 		describe("and gets IP address of instance", function () {
 			var SshPollingStub;
 			var getPublicIPAddressStub;
@@ -622,13 +641,15 @@ describe("The AwsAdapter class ", function () {
 				var SshPollingStub;
 				var getPublicIPAddressStub;
 				var getInstanceStub;
-				var instanceProp;
+				var instanceProp = { };
 				var result;
 
 				before(function () {
 					return instances.createInstance()
 					.then(function (instance) {
-						instanceProp = instance;
+						instanceProp = JSON.parse(JSON.stringify(instance));
+						instanceProp.instanceID = VALID_EC2_INSTANCE;
+
 						SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
 							return Bluebird.reject("Simulated Failure.");
 						});
