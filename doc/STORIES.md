@@ -632,7 +632,7 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
   }
 ```
 
-### `IVa` When the instance does not exist.
+### `IVb` When the instance does not exist.
 1. The User wants to terminate an instance with a particular id
 
 2. The User makes a `DELETE` request to `v1/instances/instanceId1`.

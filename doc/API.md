@@ -70,13 +70,13 @@ Updates the specified instance. The state of an instance can be set to `pending`
 
 * `404` Not Found
 
-* `409` Conflict: Ensure you have the latest document version.
+* `409` Concurrency Error: Returned when the latest version of the document is not used.
 
 ### `DELETE` /v1/instances/<span style="opacity: 0.5">{instanceId}</span>
 Terminates the specified instance.
 
 #### Returns
 
-* `204` No Content: The resource has been deleted.
+* `200` OK: Returned when the resource has been deleted.
 
 * `404` Not Found
