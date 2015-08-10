@@ -25,7 +25,7 @@ describe("The Rest plugin", function () {
 	var ID_REGEX          = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
 	var VALID_IP_ADDRESS  = "127.0.0.1";
 
-	var INVALID_AMI       = [ "ami-defualt" ];
+	var INVALID_AMI       = [ "ami-default" ];
 	var INVALID_QUERY     = "clumsy-cheetah";
 
 	var location          = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
@@ -39,17 +39,10 @@ describe("The Rest plugin", function () {
 
 	describe("when registered", function () {
 		var server      = new Hapi.Server();
-		var environment = new Environment();
 
 		before(function () {
 			server.connection();
-			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
-
 			return server.registerAsync(Rest);
-		});
-
-		after(function () {
-			environment.restore();
 		});
 
 		it("provides the '/' route", function () {
@@ -60,103 +53,78 @@ describe("The Rest plugin", function () {
 		});
 	});
 
-	describe("creating a new instance when AWS_DEFAULT_SECURITY_GROUP is not defined", function () {
-		var server = new Hapi.Server();
-		var runInstancesStub;
-		var environment = new Environment();
-		var awsAdapter = new AwsAdapter();
-		var result;
-
-		before(function () {
-
-			environment.delete("AWS_DEFAULT_SECURITY_GROUP");
-			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
-			.returns(Bluebird.resolve({
-				id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
-				ami      : "ami-d05e75b8",
-				type     : "t2.micro",
-				revision : 0,
-				state    : "pending",
-				uri      : null
-			}));
-
-			server.connection();
-			return server.registerAsync({
-				register : Rest,
-				options  : {
-					awsAdapter : awsAdapter
-				}
-			})
-			.catch(function (error) {
-				result = error;
-			});
-		});
-
-		after(function () {
-			environment.restore();
-			runInstancesStub.restore();
-		});
-
-		it("throws as error indicating the Security Group is not defined", function () {
-			expect(result).to.be.an.instanceof(Error);
-			expect(result.message).to.contain("Security Group not set");
-		});
-	});
-
 	describe("creating a new instance", function () {
 		var server = new Hapi.Server();
 		var runInstancesStub;
-		var environment = new Environment();
 		var awsAdapter = new AwsAdapter();
 
 		before(function () {
-
-			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
-			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
-			.returns(Bluebird.resolve({
-				id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
-				ami      : "ami-d05e75b8",
-				type     : "t2.micro",
-				revision : 0,
-				state    : "pending",
-				uri      : null
-			}));
-
 			server.connection();
-			return server.registerAsync({
+			server.registerAsync({
 				register : Rest,
 				options  : {
 					awsAdapter : awsAdapter
 				}
-			})
-			.catch(function (error) {
-				console.log(error);
 			});
 		});
 
-		after(function () {
-			environment.restore();
-			runInstancesStub.restore();
-		});
-
 		describe("with valid parameters passed - excluding a security group", function () {
+			var result;
 
-			it("creates the instance and returns the canonical uri", function () {
+			before(function () {
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					revision : 0,
+					state    : "pending",
+					uri      : null
+				}));
+
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
 					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(201);
-					expect(response.headers.location, "location").to.match(location);
+					result = response;
 				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("creates the instance with the parameters passed", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+			});
+
+			it("returns the canonical uri with appropriate an statusCode", function () {
+				expect(result.statusCode, "status").to.equal(201);
+				expect(result.headers.location, "location").to.match(location);
 			});
 		});
 
 		describe("with valid parameters passed - including a security group", function () {
-			it("creates the instance and returns the canonical uri", function () {
+			var result;
+
+			before(function () {
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					revision : 0,
+					state    : "pending",
+					uri      : null
+				}));
+
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami           : VALID_AMI,
 					type          : VALID_TYPE,
@@ -164,40 +132,89 @@ describe("The Rest plugin", function () {
 				});
 				return request.inject(server)
 				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(201);
-					expect(response.headers.location, "location").to.match(location);
+					result = response;
 				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("creates the instance with the parameters passed", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal(VALID_SEC_GROUP);
+			});
+
+			it("returns the canonical uri with appropriate an statusCode", function () {
+				expect(result.statusCode, "status").to.equal(201);
+				expect(result.headers.location, "location").to.match(location);
 			});
 		});
 
 		describe("with no parameters passed", function () {
+			var result;
 
-			it("creates the instance and returns the canonical uri", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json");
+			before(function () {
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					revision : 0,
+					state    : "pending",
+					uri      : null
+				}));
+
+				var request = new Request("POST", "/v1/instances");
 				return request.inject(server)
 				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(201);
-					expect(response.headers.location, "location").to.match(location);
+					result = response;
 				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("creates the instance with the parameters passed", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+			});
+
+			it("returns the canonical uri with appropriate an statusCode", function () {
+				expect(result.statusCode, "status").to.equal(201);
+				expect(result.headers.location, "location").to.match(location);
 			});
 		});
 
 		describe("with invalid parameter(s) passed", function () {
 
-			it("returns an error with statusCode 400", function () {
+			var error;
+
+			before(function () {
+
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : INVALID_AMI,
 					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
-					var error = JSON.parse(response.payload);
-					expect(error.statusCode, "status").to.equal(400);
-					expect(error.message)
-					.to.equal("Bad Request: Please check the parameters passed.");
+					error = JSON.parse(response.payload);
 				});
+			});
+
+			it("returns an error with statusCode 400", function () {
+				expect(error.statusCode, "status").to.equal(400);
+				expect(error.message)
+				.to.equal("Bad Request: Please check the parameters passed.");
 			});
 		});
 
@@ -206,13 +223,10 @@ describe("The Rest plugin", function () {
 	describe("fails in creating a new instance", function () {
 		var server = new Hapi.Server();
 		var runInstancesStub;
-		var environment = new Environment();
 
 		var awsAdapter = new AwsAdapter();
 
 		before(function () {
-
-			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
 			server.connection();
 
@@ -224,13 +238,10 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		after(function () {
-			environment.restore();
-		});
-
 		describe("when the credentials aren't properly configured", function () {
 
 			var result;
+
 			before(function () {
 				var AuthError  = new Error();
 				AuthError.name = "AuthFailure";
@@ -284,6 +295,15 @@ describe("The Rest plugin", function () {
 				runInstancesStub.restore();
 			});
 
+			it("runInstances is called with the correct parameters", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal("ami-invalid");
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+			});
+
 			it("returns an error with statusCode 400", function () {
 				expect(result.statusCode, "status").to.equal(400);
 				expect(result.message)
@@ -324,7 +344,7 @@ describe("The Rest plugin", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal("t2.notExist");
 				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
 				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
-				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("default-group");
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
 			});
 
 			it("returns an error with statusCode 400", function () {
