@@ -50,6 +50,8 @@
     "lodash": "^2.4.2",
     "aws-sdk": "^2.1.38",
     "good-console": "^5.0.2",
-    "good": "^6.3.0"
+    "good": "^6.3.0",
+    "catbox": "5.0.0",
+    "catbox-mongodb": "1.1.0"
   }
 }
