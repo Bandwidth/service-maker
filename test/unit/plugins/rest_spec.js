@@ -279,6 +279,7 @@ describe("The Rest plugin", function () {
 
 		var server = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
+		var awsAdapter = new AwsAdapter();
 
 		before(function () {
 
@@ -286,7 +287,8 @@ describe("The Rest plugin", function () {
 			return server.registerAsync({
 				register : Rest,
 				options  : {
-					instances : instanceAdapter
+					instances  : instanceAdapter,
+					awsAdapter : awsAdapter
 				}
 			});
 		});
@@ -321,9 +323,19 @@ describe("The Rest plugin", function () {
 
 		describe("with a valid instance", function () {
 			var getInstanceStub;
+			var checkInstanceStatusStub;
 
 			before(function () {
 				getInstanceStub = Sinon.stub(instanceAdapter, "getInstance")
+				.returns(Bluebird.resolve({
+					id    : VALID_INSTANCE_ID,
+					ami   : "ami-d05e75b8",
+					type  : "t2.micro",
+					state : "pending",
+					uri   : ""
+				}));
+
+				checkInstanceStatusStub = Sinon.stub(awsAdapter, "checkInstanceStatus")
 				.returns(Bluebird.resolve({
 					id    : VALID_INSTANCE_ID,
 					ami   : "ami-d05e75b8",
@@ -335,6 +347,7 @@ describe("The Rest plugin", function () {
 
 			after(function () {
 				getInstanceStub.restore();
+				checkInstanceStatusStub.restore();
 			});
 
 			it("gets the instance of the requsted id", function () {
@@ -350,6 +363,8 @@ describe("The Rest plugin", function () {
 				});
 			});
 		});
+
+		describe("from a cached instance"
 	});
 
 	describe("querying for instances", function () {

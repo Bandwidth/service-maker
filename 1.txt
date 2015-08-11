@@ -1,0 +1,330 @@
+
+> service-maker@2.0.0 test c:\Users\rpoduval\Documents\nodejs_code\service-maker
+> grunt
+
+[4mRunning "jshint:src" (jshint) task[24m
+[32m>> [39m7 files lint free.
+
+[4mRunning "jshint:test" (jshint) task[24m
+[32m>> [39m6 files lint free.
+
+[4mRunning "jscs:src" (jscs) task[24m
+[32m>> [39m13 files without code style errors.
+
+[4mRunning "mochaIstanbul:coverage" (mochaIstanbul) task[24m
+{ [Error: Cannot find module '../build/Release/bson'] code: 'MODULE_NOT_FOUND' }
+{ [Error: Cannot find module '../build/Release/bson'] code: 'MODULE_NOT_FOUND' }
+
+
+  The Instance model
+    initialized with all valid parameters, state - running
+      √ returns an Instance object
+    initialized with all valid parameters, state - pending
+      √ returns an Instance object
+    initialized with invalid uri
+      √ fails
+    initialized with invalid state
+      √ fails
+    initialized with id missing
+      √ fails
+    initialized with using an array instead of string
+      √ fails
+    initialized with some parameters null
+      √ fails
+    initialized with type missing
+      √ returns an Instance object
+    initialized with some missing parameters
+      √ fails
+    initialized with all missing parameters
+      √ fails
+    initialized with adding properties that don't exist
+      √ fails
+
+  The Rest plugin
+    √ is a Hapi plugin
+    when registered
+      √ provides the '/' route
+    creating a new instance
+      with valid parameters passed
+        √ creates the instance and returns the canonical uri
+      with no parameters passed
+        √ creates the instance and returns the canonical uri
+      with invalid parameter(s) passed
+        √ returns an error with statusCode 400
+    fails in creating a new instance
+      when the credentials aren't properly configured
+        √ returns an error with statusCode 500
+      with an ami that doesn't exist
+        √ returns an error with statusCode 400
+      with a type that doesn't exist
+        √ returns an error with statusCode 400
+    when there is a problem with the database connection
+      √ returns an internal server error with status code 500
+    getting an instance
+      with an invalid instance id
+        √ shows the instance does not exist
+      with a valid instance
+MY DFDFDF"{\"id\":\"da14fbf2-5404-4f92-b55f-a961578204ed\",\"ami\":\"ami-d05e75b8\",\"type\":\"t2.micro\",\"state\":\"pending\",\"uri\":\"\"}"
+        √ gets the instance of the requsted id
+    querying for instances
+      with a valid type
+        √ returns an array of instances with the given type
+      with an invalid instance by sending non-exisitng Instance Id and type
+        √ returns an empty array of instances
+      with a valid ID
+        √ returns an instance with requested id
+      with a valid AMI
+        √ returns an array of instances with requested ami
+      with state=pending
+        √ returns an array of instances which are in a pending state
+      with invalid URI
+        √ returns an empty array of intsances
+      with multiple values for a parameter
+        √ fails and returns a Bad Request
+    encountering an internal error
+      failing to find an instance for specified instanceId
+        √ fails
+      failing to find all instances
+        √ fails
+    updating a created instance
+      setting the state of a created instance to terminated
+        when the instance is valid
+          √ terminateInstances is called with the correct parameters
+          √ the status is set to terminated
+        when the instance ID doesn't exist
+          √ a 404 error is thrown
+        when the payload is malformed
+          √ a 400 error is thrown
+        when two requests are made simultaneously
+          √ one succeeds while the other fails
+        when there is an AWS error
+          √ terminateInstances is called with the instance ID
+          √ returns the instance with state set to terminating
+          √ returns the instance with state set to failed
+        when the connection to the database fails
+          √ throws a 500 error
+        when the database completely fails after terminateInstances has run
+          √ terminateInstances is called with the instance ID
+          √ leaves the state unchanged(terminating)
+        when the database fails after terminateInstances has run, but then recovers
+          √ terminateInstances is called with the instance ID
+          √ updateInstance is called with the correct parameters the second time
+          √ updateInstance is called with the correct parameters the third time
+          √ getInstance is called with the correct parameters the second time
+          √ changes the state to failed
+        when the getInstance fails after the second updateInstance fails
+          √ terminateInstances is called with the instance ID
+          √ updateInstance is called with the correct parameters the second time
+          √ getInstance is called with the correct parameters the second time
+          √ leaves the state unchanged(stopping)
+        when the database and terminateInstances fail
+          √ terminateInstances is called with the instance ID
+          √ getInstance is called with the correct parameters the second time
+          √ leaves the state unchanged(terminating)
+      setting the state of a created instance to stopped
+        when the instance is valid
+          √ stopInstances is called with the correct parameters
+          √ the status is set to stopped
+        when the instance ID doesn't exist
+          √ a 404 error is thrown
+        when the payload is malformed
+          √ a 400 error is thrown
+        when two requests are made simultaneously
+          √ one succeeds while the other fails
+        when there is an AWS error
+          √ returns the instance with state set to stopping
+          √ then updates the instance state set to failed
+        when the connection to the database fails
+          √ throws a 500 error
+        when the database completely fails after stopInstances has run
+          √ updateInstance is called with the correct parameters the second time
+          √ stopInstances is called with the instance ID
+          √ leaves the state unchanged(stopping)
+        when the database fails after stopInstances has run, but then recovers
+          √ stopInstances is called with the instance ID
+          √ updateInstance is called with the correct parameters the second time
+          √ updateInstance is called with the correct parameters the third time
+          √ getInstance is called with the correct parameters the second time
+          √ leaves the state unchanged(stopping)
+        when the getInstance fails after the second updateInstance fails
+          √ updateInstance is called with the correct parameters the second time
+          √ stopInstances is called with the instance ID
+          √ getInstance is called with the correct parameters the second time
+          √ leaves the state unchanged(stopping)
+        when the database and stopInstances completely fail
+          √ stopInstances is called with the instance ID
+          √ getInstance is called with the correct parameters the second time
+          √ leaves the state unchanged(stopping)
+      setting the status of an instance to a state not handled by update
+        √ throws an error
+        √ leaves the instance unmodified
+    creating awsAdapter object when the options passed are invalid
+      √ fails
+    Deleting an instance
+      with an invalid instance id
+        √ shows the instance does not exist
+      with a valid instance id
+        √ returns the instance state with state set to terminating
+        √ status is updated to terminated
+      when there is a AWS error 
+        √ returns the instance state with state set to terminating
+        √ then updates the instance state set to failed
+      when the connection to the database fails
+        √ returns a 500 error
+      when the database fails after terminateInstances has run
+        √ terminateInstances is called with instance id
+        √ leaves the state unchanged (terminating)
+      when the database fails after terminateInstances has run, but then recovers
+        √ terminateInstances is called with the instance ID
+        √ updateInstance is called with the correct parameters the second time
+        √ updateInstance is called with the correct parameters the third time
+        √ getInstance is called with the correct parameters the second time
+        √ changes the state to failed
+      when the getInstance fails after the second updateInstance fails
+        √ terminateInstances is called with the instance ID
+        √ updateInstance is called with the correct parameters the second time
+        √ getInstance is called with the correct parameters
+        √ leaves the state unchanged(stopping)
+
+  The server
+    √ registers the Rest plugin
+
+  The AwsAdapter class 
+    trying to create a new instance
+      with valid parameters
+        √ creates the security group
+        √ adds rules for SSH to the security group
+        √ and returns a new instance with the ami and type provided
+      with a security group name that already exists
+        √ finds the group already created
+        √ checks that it isn't modified
+        √ and returns a new instance with the ami and type provided
+      when an error occurs with creating the security group
+        √ expects an error
+        √ doesn't create a new instance
+        √ doesn't try adding rules to the security group
+      with invalid ami
+        √ throws an InvalidAMIID.Malformed error
+      with invalid type
+        √ throws an InvalidParameterValue
+    gets properties of given instance
+      √ gets properties of the given instance
+    gets properties of invalid instance
+      √ fails
+    gets the IP Address of the instance
+      √ gets a valid IP address
+    begins Polling
+      and gets IP address of instance
+        √ updates the state and uri of the instance
+      and faces error while updating the instance
+        √ throws an error
+      and faces an error while polling
+        √ updates the state and uri of the instance
+      faces an error while polling and updating instance fails as well
+        √ fails to update the state and uri of the instance
+      gets IP address and tries to update an instance which has already been modified
+        √ does not update the current instance status
+      faces an error while polling and tries to update an instance which has already been modified
+        √ does not update the current instance status
+      faces an error while polling and getInstance does not show state has been updated
+        √ fails to update as it has wrong revision number
+    Trying to create awsAdapter Instance
+      with missing parameters
+        √ fails to create an object
+      with invalid parameters
+        √ fails to create an object
+    terminating an instance
+      when the instance is running
+        √ gets the details of the instance, sets the state on the AWS console to terminated
+        √ starts terminating the instance
+        √ waits for the instance to be terminated
+        √ checks the instance is terminated
+      when the instance has already been terminated (doesn't exist)
+        √ throws an error
+      when waitFor times out
+        √ gets the instance details
+        √ starts terminating the instance
+        √ times out
+    stopping an instance
+      when the instance is running
+        √ gets the details of the instance, sets the state on the AWS console to stopped
+        √ initiates stopping the instance
+        √ waits for the instance to be stopped
+        √ checks the instance has been stopped
+      when the instance doesn't exist
+        √ throws an error
+      when waitFor times out
+        √ gets the instance details
+        √ starts terminating the instance
+        √ times out
+
+  The InstanceAdapter class 
+    √ is immutable
+    creating a new instance
+      √ returns a new instance with default values
+    creating a new instance, passing ami and type
+      √ returns a new instance with default values
+    Getting an instance
+      with a valid instanceId
+        √ gets a valid instance
+      with a non-existent instanceId
+        √ fails
+    Querying for instances
+      with valid parameters
+        √ receives an array of instances
+      with no parameters
+        √ receives an array of all instances
+      with a query that doesn't match any instance
+        √ returns an empty array
+    The mapper faces an internal error
+      when the mapper fails to create a new model
+        √ throws an error
+      when the mapper fails to find an instance
+        √ throws an error
+      when the mapper fails to find an instance for the queried parameters
+        √ throws an error
+    updating an already created instance
+      √ updates the instance and sets state to failed
+
+  The SSH Adapter Class
+    Checks if it is possible to ssh
+      once the status checks have passed
+MY ID:i-fbf47257
+        √ returns that it is possible to ssh
+      as soon as instance is created
+MY ID:i-fbf47257
+        √ is not possible to ssh currently
+      when system checks have failed
+MY ID:i-fbf47257
+        √ it returns an error
+      when there is insufficient-data
+MY ID:i-fbf47257
+        √ it returns an error
+    Starts ssh Polling
+      when system checks have passed
+        √ is possible to ssh now
+      when it is still performing system checks
+        √ is possible to ssh eventually
+      when system checks have failed
+        √ it throws an error
+      when system checks detects insufficient-data
+        √ it throws an error
+      when ssh polling encounters a timeout
+        √ it throws an error
+    Aws faces an internal error
+MY ID:i-fbf47257
+      √ encounters an error
+
+
+  159 passing (1s)
+
+
+=============================== Coverage summary ===============================
+Statements   : 95.74% ( 315/329 )
+Branches     : 94.2% ( 65/69 )
+Functions    : 93.02% ( 80/86 )
+Lines        : 95.74% ( 315/329 )
+================================================================================
+[33mWarning:  Use --force to continue.[39m
+
+[31mAborted due to warnings.[39m
