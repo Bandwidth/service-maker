@@ -148,6 +148,23 @@ describe("The SSH Adapter Class", function () {
 
 	describe("Starts ssh Polling", function () {
 
+		describe("with invalid parameters", function () {
+			var result;
+			var sshAdapter = new SshAdapter(ec2);
+
+			before(function () {
+				return sshAdapter.SshPolling(undefined)
+				.catch(function (err) {
+					result = err;
+				});
+			});
+
+			it("fails", function () {
+				expect(result).to.be.an.instanceof(Error);
+				expect(result.message).to.equal("instanceID parameter is not defined");
+			});
+		});
+
 		describe("when system checks have passed", function () {
 			var canSshStub;
 			var result;

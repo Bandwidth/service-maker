@@ -8,6 +8,7 @@ var AWS             = require("aws-sdk");
 var SshAdapter      = require("../../../lib/services/sshAdapter");
 var InstanceAdapter = require("../../../lib/services/instanceAdapter");
 var Instance        = require("../../../lib/models/Instance");
+var _               = require("lodash");
 var ec2             = new AWS.EC2();
 
 Bluebird.promisifyAll(ec2);
@@ -414,24 +415,6 @@ describe("The AwsAdapter class ", function () {
 
 		var awsAdapter = new AwsAdapter(awsOptions);
 
-		describe("with incorrect parameters", function () {
-			var result;
-
-			before(function () {
-				var instance = { id : "wrongInstance" };
-				return awsAdapter.beginPolling(instance)
-				.catch(function (error) {
-					result = error;
-				});
-			});
-
-			it("fails", function () {
-				expect(result).to.be.an.instanceof(Error);
-				expect(result.message).to.contain("\"type\" is required");
-			});
-
-		});
-
 		describe("and gets IP address of instance", function () {
 			var SshPollingStub;
 			var getPublicIPAddressStub;
@@ -449,7 +432,7 @@ describe("The AwsAdapter class ", function () {
 
 				return instances.createInstance("ami-d05e75b8","t2.micro")
 				.then(function (data) {
-					instanceProp  = JSON.parse(JSON.stringify(data));
+					instanceProp  = _.clone(data);
 					instanceProp.instanceID = VALID_EC2_INSTANCE;
 					return awsAdapter.beginPolling(instanceProp);
 				})
@@ -492,7 +475,7 @@ describe("The AwsAdapter class ", function () {
 
 				return instances.createInstance("ami-d05e75b8","t2.micro")
 				.then(function (data) {
-					instanceProp  = JSON.parse(JSON.stringify(data));
+					instanceProp  = _.clone(data);
 					instanceProp.instanceID = VALID_EC2_INSTANCE;
 					return awsAdapter.beginPolling(instanceProp);
 				})
@@ -525,7 +508,7 @@ describe("The AwsAdapter class ", function () {
 
 				return instances.createInstance("ami-d05e75b8","t2.micro")
 				.then(function (data) {
-					instanceProp  = JSON.parse(JSON.stringify(data));
+					instanceProp  = _.clone(data);
 					instanceProp.instanceID = VALID_EC2_INSTANCE;
 					return awsAdapter.beginPolling(instanceProp);
 				})
@@ -565,7 +548,7 @@ describe("The AwsAdapter class ", function () {
 
 					return instances.createInstance("ami-d05e75b8","t2.micro")
 					.then(function (data) {
-						instanceProp  = JSON.parse(JSON.stringify(data));
+						instanceProp  = _.clone(data);
 						instanceProp.instanceID = VALID_EC2_INSTANCE;
 						return awsAdapter.beginPolling(instanceProp);
 					})
@@ -611,7 +594,7 @@ describe("The AwsAdapter class ", function () {
 							uri   : data.uri
 						});
 						instances.updateInstance(updatedInstance);
-						instanceProp  = JSON.parse(JSON.stringify(data));
+						instanceProp  = _.clone(data);
 						instanceProp.instanceID = VALID_EC2_INSTANCE;
 						return awsAdapter.beginPolling(instanceProp);
 					})
@@ -646,7 +629,7 @@ describe("The AwsAdapter class ", function () {
 				before(function () {
 					return instances.createInstance()
 					.then(function (instance) {
-						instanceProp = JSON.parse(JSON.stringify(instance));
+						instanceProp = _.clone(instance);
 						instanceProp.instanceID = VALID_EC2_INSTANCE;
 
 						SshPollingStub = Sinon.stub(sshAdapter,"SshPolling", function () {
@@ -720,7 +703,7 @@ describe("The AwsAdapter class ", function () {
 						uri   : data.uri
 					});
 					instances.updateInstance(updatedInstance);
-					instanceProp  = JSON.parse(JSON.stringify(data));
+					instanceProp  = _.clone(data);
 					instanceProp.instanceID = VALID_EC2_INSTANCE;
 					return awsAdapter.beginPolling(instanceProp);
 				})
