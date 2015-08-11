@@ -1118,7 +1118,7 @@ describe("The AwsAdapter class ", function () {
 				expect(beginPollingStub.firstCall.args[ 0 ].type).to.equal(defaultInstance.type);
 				expect(beginPollingStub.firstCall.args[ 0 ].uri).to.equal(defaultInstance.uri);
 				expect(beginPollingStub.firstCall.args[ 0 ].revision).to.equal(defaultInstance.revision);
-				expect(beginPollingStub.firstCall.args[ 0 ].instanceId).to.equal(VALID_AWS_ID);
+				expect(beginPollingStub.firstCall.args[ 0 ].instanceID).to.equal(VALID_AWS_ID);
 			});
 
 			it("starts the instance", function () {
@@ -1178,7 +1178,7 @@ describe("The AwsAdapter class ", function () {
 				expect(beginPollingStub.firstCall.args[ 0 ].type).to.equal(defaultInstance.type);
 				expect(beginPollingStub.firstCall.args[ 0 ].uri).to.equal(defaultInstance.uri);
 				expect(beginPollingStub.firstCall.args[ 0 ].revision).to.equal(defaultInstance.revision);
-				expect(beginPollingStub.firstCall.args[ 0 ].instanceId).to.equal(VALID_AWS_ID);
+				expect(beginPollingStub.firstCall.args[ 0 ].instanceID).to.equal(VALID_AWS_ID);
 			});
 
 		});
