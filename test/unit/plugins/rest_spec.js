@@ -60,12 +60,16 @@ describe("The Rest plugin", function () {
 
 		before(function () {
 			server.connection();
-			server.registerAsync({
+			return server.registerAsync({
 				register : Rest,
 				options  : {
 					awsAdapter : awsAdapter
 				}
 			});
+		});
+
+		after(function () {
+			return server.stopAsync();
 		});
 
 		describe("with valid parameters passed - excluding a security group", function () {
@@ -236,6 +240,10 @@ describe("The Rest plugin", function () {
 					awsAdapter : awsAdapter
 				}
 			});
+		});
+
+		after(function () {
+			return server.stopAsync();
 		});
 
 		describe("when the credentials aren't properly configured", function () {
@@ -422,6 +430,7 @@ describe("The Rest plugin", function () {
 		after(function () {
 			environment.restore();
 			mapper.create.restore();
+			return server.stopAsync();
 		});
 
 		it("returns an internal server error with status code 500", function () {
@@ -458,6 +467,7 @@ describe("The Rest plugin", function () {
 
 		after(function () {
 			environment.restore();
+			return server.stopAsync();
 		});
 
 		describe("with an invalid instance id", function () {
@@ -539,6 +549,7 @@ describe("The Rest plugin", function () {
 
 		after(function () {
 			environment.restore();
+			return server.stopAsync();
 		});
 
 		describe("with a valid type", function () {
@@ -775,6 +786,7 @@ describe("The Rest plugin", function () {
 
 		after(function () {
 			environment.restore();
+			return server.stopAsync();
 		});
 
 		describe("failing to find an instance for specified instanceId", function () {
@@ -843,6 +855,7 @@ describe("The Rest plugin", function () {
 
 		after(function () {
 			environment.restore();
+			return server.stopAsync();
 		});
 
 		describe("setting the state of a created instance to terminated", function () {
@@ -1121,6 +1134,7 @@ describe("The Rest plugin", function () {
 
 				after(function () {
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("throws a 500 error", function () {
@@ -1194,6 +1208,7 @@ describe("The Rest plugin", function () {
 				after(function () {
 					terminateInstancesStub.restore();
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("terminateInstances is called with the instance ID", function () {
@@ -1296,6 +1311,7 @@ describe("The Rest plugin", function () {
 					terminateInstancesStub.restore();
 					updateStub.restore();
 					getStub.restore();
+					server.stopAsync();
 				});
 
 				it("terminateInstances is called with the instance ID", function () {
@@ -1399,6 +1415,7 @@ describe("The Rest plugin", function () {
 					terminateInstancesStub.restore();
 					updateStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("terminateInstances is called with the instance ID", function () {
@@ -1470,6 +1487,7 @@ describe("The Rest plugin", function () {
 				after(function () {
 					terminateInstancesStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("terminateInstances is called with the instance ID", function () {
@@ -1760,6 +1778,7 @@ describe("The Rest plugin", function () {
 
 				after(function () {
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("throws a 500 error", function () {
@@ -1830,6 +1849,7 @@ describe("The Rest plugin", function () {
 				after(function () {
 					stopInstancesStub.restore();
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("updateInstance is called with the correct parameters the second time", function () {
@@ -1940,6 +1960,7 @@ describe("The Rest plugin", function () {
 					stopInstancesStub.restore();
 					updateStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("stopInstances is called with the instance ID", function () {
@@ -2043,6 +2064,7 @@ describe("The Rest plugin", function () {
 					stopInstancesStub.restore();
 					updateStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("updateInstance is called with the correct parameters the second time", function () {
@@ -2114,6 +2136,7 @@ describe("The Rest plugin", function () {
 				after(function () {
 					stopInstancesStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("stopInstances is called with the instance ID", function () {
@@ -2408,6 +2431,7 @@ describe("The Rest plugin", function () {
 
 				after(function () {
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("throws a 500 error", function () {
@@ -2505,6 +2529,7 @@ describe("The Rest plugin", function () {
 
 		after(function () {
 			environment.restore();
+			return server.stopAsync();
 		});
 
 		describe("with an invalid instance id", function () {
