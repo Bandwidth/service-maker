@@ -36,8 +36,9 @@ Creates a new instance of the specified type.
 #### Payload format
 ```
 {
-	"ami"  : string, // [OPTIONAL] the AMI ID for the instance. Defaults to a blank Ubuntu AMI.
-	"type" : string  // [OPTIONAL] an EC2 instance type. Defaults to t2.micro
+	"ami"           : string, // [OPTIONAL] the AMI ID for the instance. Defaults to a blank Ubuntu AMI.
+	"type"          : string, // [OPTIONAL] an EC2 instance type. Defaults to t2.micro
+	"securityGroup" : string  // [OPTIONAL] an EC2 security group name. Defaults to service-maker.
 }
 ```
 
@@ -46,6 +47,8 @@ Creates a new instance of the specified type.
 * `201` Created: Returns a description of the created instance resource according to the schema [above](#instance). The reply body will contain a `Location` header which points to the canonical location of the Instance resource.
 
 * `400` Bad Request: Returned if the instance configuration parameters are invalid (for instance, if the specified instance type does not exist).
+
+* `500` Internal Server Error: Returned if something else goes wrong.
 
 ### `GET` /v1/instances/<span style="opacity: 0.5">{instanceId}</span>
 Describes the specified instance.
@@ -57,7 +60,7 @@ Describes the specified instance.
 * `404` Not Found
 
 ### `PUT` /v1/instances/<span style="opacity: 0.5">{instanceId}</span>
-Updates the specified instance.
+Updates the specified instance. The state of an instance can be set to `pending`, `stopping` or `terminating` in order to start, stop or terminate an instance on the EC2 console.
 
 #### Returns
 
@@ -67,11 +70,13 @@ Updates the specified instance.
 
 * `404` Not Found
 
+* `409` Concurrency Error: Returned when the latest version of the document is not used.
+
 ### `DELETE` /v1/instances/<span style="opacity: 0.5">{instanceId}</span>
 Terminates the specified instance.
 
 #### Returns
 
-* `204` No Content: The resource has been deleted.
+* `200` OK: Returned when the resource has been deleted.
 
 * `404` Not Found
