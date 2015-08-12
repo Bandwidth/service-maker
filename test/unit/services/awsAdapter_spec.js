@@ -95,7 +95,7 @@ describe("The AwsAdapter class ", function () {
 
 				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				});
@@ -158,7 +158,67 @@ describe("The AwsAdapter class ", function () {
 
 				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				beginPollingStub.restore();
+				createSecurityGroupStub.restore();
+				authorizeSecurityGroupIngressStub.restore();
+			});
+
+			it("finds the group already created", function () {
+				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
+			});
+
+			it("checks that it isn't modified", function () {
+				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
+			});
+
+			it("and returns a new instance with the ami and type provided", function () {
+				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal(DEFAULT_SG_NAME);
+
+				expect(result.ami, "response").to.equal("ami-d05e75b8");
+				expect(result.type, "response").to.equal("t2.micro");
+			});
+		});
+
+		describe("with a security group name that is reserved", function () {
+
+			var runInstancesStub;
+			var beginPollingStub;
+			var createSecurityGroupStub;
+			var authorizeSecurityGroupIngressStub;
+
+			before(function () {
+
+				var error     = new Error();
+				error.message = "The security group name used is reserved.";
+				error.name    = "InvalidParameters";
+
+				createSecurityGroupStub = Sinon.stub(ec2, "createSecurityGroupAsync")
+				.rejects(error);
+
+				authorizeSecurityGroupIngressStub = Sinon.stub(ec2, "authorizeSecurityGroupIngressAsync")
+				.resolves("test");
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
+
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				});
@@ -217,7 +277,7 @@ describe("The AwsAdapter class ", function () {
 
 				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				})
