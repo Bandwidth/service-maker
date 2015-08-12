@@ -105,8 +105,8 @@ describe("The Rest plugin", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
 				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
 				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
-				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
-				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 1 ].createSecurityGroup).to.equal(undefined);
+				expect(runInstancesStub.firstCall.args[ 1 ].existingSecurityGroup).to.equal(undefined);
 			});
 
 			it("returns the canonical uri with appropriate an statusCode", function () {
@@ -115,7 +115,7 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("with valid parameters passed - including a security group", function () {
+		describe("with valid parameters passed - creating a security group", function () {
 			var result;
 
 			before(function () {
@@ -130,9 +130,9 @@ describe("The Rest plugin", function () {
 				}));
 
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami           : VALID_AMI,
-					type          : VALID_TYPE,
-					securityGroup : VALID_SEC_GROUP
+					ami                 : VALID_AMI,
+					type                : VALID_TYPE,
+					createSecurityGroup : VALID_SEC_GROUP
 				});
 				return request.inject(server)
 				.then(function (response) {
@@ -150,7 +150,7 @@ describe("The Rest plugin", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
 				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
 				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
-				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal(VALID_SEC_GROUP);
+				expect(runInstancesStub.firstCall.args[ 1 ].createSecurityGroup).to.equal(VALID_SEC_GROUP);
 			});
 
 			it("returns the canonical uri with appropriate an statusCode", function () {
@@ -190,7 +190,8 @@ describe("The Rest plugin", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
 				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
 				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
-				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 1 ].createSecurityGroup).to.equal(undefined);
+				expect(runInstancesStub.firstCall.args[ 1 ].existingSecurityGroup).to.equal(undefined);
 			});
 
 			it("returns the canonical uri with appropriate an statusCode", function () {
@@ -309,7 +310,8 @@ describe("The Rest plugin", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
 				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
 				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
-				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 1 ].createSecurityGroup).to.equal(undefined);
+				expect(runInstancesStub.firstCall.args[ 1 ].existingSecurityGroup).to.equal(undefined);
 			});
 
 			it("returns an error with statusCode 400", function () {
@@ -352,7 +354,8 @@ describe("The Rest plugin", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal("t2.notExist");
 				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
 				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
-				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 1 ].createSecurityGroup).to.equal(undefined);
+				expect(runInstancesStub.firstCall.args[ 1 ].existingSecurityGroup).to.equal(undefined);
 			});
 
 			it("returns an error with statusCode 400", function () {
@@ -375,9 +378,9 @@ describe("The Rest plugin", function () {
 				.rejects(SecurityGroupError);
 
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami           : VALID_AMI,
-					type          : "t2.micro",
-					securityGroup : "reserved-group"
+					ami                 : VALID_AMI,
+					type                : "t2.micro",
+					createSecurityGroup : "reserved-group"
 				});
 
 				return request.inject(server)
@@ -397,7 +400,8 @@ describe("The Rest plugin", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
 				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
 				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
-				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("reserved-group");
+				expect(runInstancesStub.firstCall.args[ 1 ].createSecurityGroup).to.equal("reserved-group");
+				expect(runInstancesStub.firstCall.args[ 1 ].existingSecurityGroup).to.equal(undefined);
 			});
 
 			it("returns an error with statusCode 400", function () {
