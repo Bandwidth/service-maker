@@ -92,7 +92,7 @@ describe("The AwsAdapter class ", function () {
 						} ]
 				});
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				});
@@ -151,7 +151,63 @@ describe("The AwsAdapter class ", function () {
 						} ]
 				});
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				createSecurityGroupStub.restore();
+				authorizeSecurityGroupIngressStub.restore();
+			});
+
+			it("finds the group already created", function () {
+				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
+			});
+
+			it("checks that it isn't modified", function () {
+				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
+			});
+
+			it("and returns a new instance with the ami and type provided", function () {
+				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal(DEFAULT_SG_NAME);
+
+				expect(result.ami, "response").to.equal("ami-d05e75b8");
+				expect(result.type, "response").to.equal("t2.micro");
+			});
+		});
+
+		describe("with a security group name that is reserved", function () {
+
+			var runInstancesStub;
+			var createSecurityGroupStub;
+			var authorizeSecurityGroupIngressStub;
+
+			before(function () {
+
+				var error     = new Error();
+				error.message = "The security group name used is reserved.";
+				error.name    = "InvalidParameters";
+
+				createSecurityGroupStub = Sinon.stub(ec2, "createSecurityGroupAsync")
+				.rejects(error);
+
+				authorizeSecurityGroupIngressStub = Sinon.stub(ec2, "authorizeSecurityGroupIngressAsync")
+				.resolves("test");
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				});
@@ -206,7 +262,7 @@ describe("The AwsAdapter class ", function () {
 						} ]
 				});
 
-				awsAdapter.runInstances(VALID_INSTANCE)
+				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
 				.then(function (response) {
 					result = response;
 				})
@@ -721,6 +777,90 @@ describe("The AwsAdapter class ", function () {
 
 			it("times out", function () {
 				expect(result.message).to.contain("timed out");
+			});
+
+		});
+
+	});
+
+	describe("starting an instance", function () {
+
+		var describeInstancesStub;
+		var startInstancesStub;
+		var defaultInstance = new Instance({
+				id       : VALID_ID,
+				ami      : DEFAULT_AMI,
+				type     : DEFAULT_TYPE,
+				state    : "pending",
+				uri      : null,
+				revision : 1
+			});
+
+		describe("when the instance is stopped", function () {
+			var result;
+			var awsAdapter = new AwsAdapter(awsOptions);
+
+			before(function () {
+
+				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
+					var data = { Reservations : [ { Instances : [ {
+						InstanceId      : VALID_AWS_ID,
+						PublicIpAddress : VALID_IP_ADDRESS
+					} ] } ] };
+					return Bluebird.resolve(data);
+				});
+
+				startInstancesStub = Sinon.stub(ec2, "startInstancesAsync", function () {
+					var data = { Instances : [ { InstanceId : VALID_AWS_ID } ] };
+					return Bluebird.resolve(data);
+				});
+
+				return awsAdapter.startInstances(defaultInstance)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				describeInstancesStub.restore();
+				startInstancesStub.restore();
+			});
+
+			it("gets the details of the instance, sets the state on the AWS console to running", function () {
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+			});
+
+			it("starts the instance", function () {
+				expect(startInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
+			});
+
+		});
+
+		describe("when the instance doesn't exist", function () {
+
+			var result;
+			var awsAdapter = new AwsAdapter(awsOptions);
+
+			before(function () {
+				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync")
+				.rejects(new Error("InvalidInstance.NotFound"));
+
+				return awsAdapter.startInstances(defaultInstance)
+				.catch(function (error) {
+					result = error;
+				});
+
+			});
+
+			after(function () {
+				describeInstancesStub.restore();
+			});
+
+			it("throws an error", function () {
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Name).to.equal("tag:ID");
+				expect(describeInstancesStub.args[ 0 ][ 0 ].Filters[ 0 ].Values[ 0 ]).to.equal(VALID_ID);
+				expect(result).to.match(/InvalidInstance.NotFound/);
 			});
 
 		});

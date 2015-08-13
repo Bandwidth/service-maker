@@ -13,6 +13,7 @@ var Sinon           = require("sinon");
 var _               = require("lodash");
 var Catbox          = require("catbox");
 var CatboxMongoDb   = require("catbox-mongodb");
+var Environment     = require("apparition").Environment;
 
 require("sinon-as-promised");
 
@@ -22,9 +23,11 @@ describe("The Rest plugin", function () {
 	var VALID_INSTANCE_ID = "da14fbf2-5404-4f92-b55f-a961578204ed";
 	var VALID_AMI         = "ami-d05e75b8";
 	var VALID_TYPE        = "t2.micro";
+	var VALID_SEC_GROUP   = "default-group";
 	var ID_REGEX          = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+	var VALID_IP_ADDRESS  = "127.0.0.1";
 
-	var INVALID_AMI       = [ "ami-defualt" ];
+	var INVALID_AMI       = [ "ami-default" ];
 	var INVALID_QUERY     = "clumsy-cheetah";
 
 	var location          = /\/v1\/instances\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
@@ -37,15 +40,11 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("when registered", function () {
-		var server = new Hapi.Server();
+		var server      = new Hapi.Server();
 
 		before(function () {
 			server.connection();
 			return server.registerAsync(Rest);
-		});
-
-		after(function () {
-			return server.stopAsync();
 		});
 
 		it("provides the '/' route", function () {
@@ -59,21 +58,9 @@ describe("The Rest plugin", function () {
 	describe("creating a new instance", function () {
 		var server = new Hapi.Server();
 		var runInstancesStub;
-
 		var awsAdapter = new AwsAdapter();
 
 		before(function () {
-
-			runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
-			.returns(Bluebird.resolve({
-				id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
-				ami      : "ami-d05e75b8",
-				type     : "t2.micro",
-				revision : 0,
-				state    : "pending",
-				uri      : null
-			}));
-
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
@@ -84,50 +71,156 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
-			runInstancesStub.restore();
 			return server.stopAsync();
 		});
 
-		describe("with valid parameters passed", function () {
-			it("creates the instance and returns the canonical uri", function () {
+		describe("with valid parameters passed - excluding a security group", function () {
+			var result;
+
+			before(function () {
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					revision : 0,
+					state    : "pending",
+					uri      : null
+				}));
+
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
 					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(201);
-					expect(response.headers.location, "location").to.match(location);
+					result = response;
 				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("creates the instance with the parameters passed", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+			});
+
+			it("returns the canonical uri with appropriate an statusCode", function () {
+				expect(result.statusCode, "status").to.equal(201);
+				expect(result.headers.location, "location").to.match(location);
+			});
+		});
+
+		describe("with valid parameters passed - including a security group", function () {
+			var result;
+
+			before(function () {
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					revision : 0,
+					state    : "pending",
+					uri      : null
+				}));
+
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami           : VALID_AMI,
+					type          : VALID_TYPE,
+					securityGroup : VALID_SEC_GROUP
+				});
+				return request.inject(server)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("creates the instance with the parameters passed", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal(VALID_SEC_GROUP);
+			});
+
+			it("returns the canonical uri with appropriate an statusCode", function () {
+				expect(result.statusCode, "status").to.equal(201);
+				expect(result.headers.location, "location").to.match(location);
 			});
 		});
 
 		describe("with no parameters passed", function () {
-			it("creates the instance and returns the canonical uri", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json");
+			var result;
+
+			before(function () {
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					revision : 0,
+					state    : "pending",
+					uri      : null
+				}));
+
+				var request = new Request("POST", "/v1/instances");
 				return request.inject(server)
 				.then(function (response) {
-					response.payload = JSON.parse(response.payload);
-					expect(response.statusCode, "status").to.equal(201);
-					expect(response.headers.location, "location").to.match(location);
+					result = response;
 				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("creates the instance with the parameters passed", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+			});
+
+			it("returns the canonical uri with appropriate an statusCode", function () {
+				expect(result.statusCode, "status").to.equal(201);
+				expect(result.headers.location, "location").to.match(location);
 			});
 		});
 
 		describe("with invalid parameter(s) passed", function () {
-			it("returns an error with statusCode 400", function () {
+
+			var error;
+
+			before(function () {
+
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : INVALID_AMI,
 					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
-					var error = JSON.parse(response.payload);
-					expect(error.statusCode, "status").to.equal(400);
-					expect(error.message)
-					.to.equal("Bad Request: Please check the parameters passed.");
+					error = JSON.parse(response.payload);
 				});
+			});
+
+			it("returns an error with statusCode 400", function () {
+				expect(error.statusCode, "status").to.equal(400);
+				expect(error.message)
+				.to.equal("Bad Request: Please check the parameters passed.");
 			});
 		});
 
@@ -156,12 +249,24 @@ describe("The Rest plugin", function () {
 		});
 
 		describe("when the credentials aren't properly configured", function () {
+
+			var result;
+
 			before(function () {
 				var AuthError  = new Error();
 				AuthError.name = "AuthFailure";
 
 				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 				.rejects(AuthError);
+
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami  : VALID_AMI,
+					type : VALID_TYPE
+				});
+				return request.inject(server)
+				.then(function (response) {
+					result = JSON.parse(response.payload);
+				});
 			});
 
 			after(function () {
@@ -169,21 +274,15 @@ describe("The Rest plugin", function () {
 			});
 
 			it("returns an error with statusCode 500", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami  : VALID_AMI,
-					type : VALID_TYPE
-				});
-				return request.inject(server)
-				.then(function (response) {
-					var error = JSON.parse(response.payload);
-					expect(error.statusCode, "status").to.equal(500);
-					expect(error.message)
-					.to.equal("An internal server error occurred");
-				});
+				expect(result.statusCode, "status").to.equal(500);
+				expect(result.message)
+				.to.equal("An internal server error occurred");
 			});
 		});
 
 		describe("with an ami that doesn't exist", function () {
+
+			var result;
 
 			before(function () {
 				var AMIError  = new Error();
@@ -191,99 +290,175 @@ describe("The Rest plugin", function () {
 
 				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
 				.rejects(AMIError);
-			});
 
-			after(function () {
-				runInstancesStub.restore();
-			});
-
-			it("returns an error with statusCode 400", function () {
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : "ami-invalid",
 					type : VALID_TYPE
 				});
 				return request.inject(server)
 				.then(function (response) {
-					var error = JSON.parse(response.payload);
-					expect(error.statusCode, "status").to.equal(400);
-					expect(error.message)
-					.to.equal("The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.");
+					result = JSON.parse(response.payload);
 				});
-			});
-		});
-
-		describe("with a type that doesn't exist", function () {
-
-			before(function () {
-				var TypeError  = new Error();
-				TypeError.name = "InvalidParameterValue";
-
-				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
-				.rejects(TypeError);
 			});
 
 			after(function () {
 				runInstancesStub.restore();
 			});
 
+			it("runInstances is called with the correct parameters", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal("ami-invalid");
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+			});
+
 			it("returns an error with statusCode 400", function () {
+				expect(result.statusCode, "status").to.equal(400);
+				expect(result.message)
+				.to.equal("The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.");
+			});
+		});
+
+		describe("with a type that doesn't exist", function () {
+
+			var result;
+
+			before(function () {
+				var TypeError     = new Error();
+				TypeError.name    = "InvalidParameterValue";
+				TypeError.message = "The Type entered does not exist. Ensure it is a valid EC2 type.";
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.rejects(TypeError);
+
 				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
 					ami  : VALID_AMI,
 					type : "t2.notExist"
 				});
 				return request.inject(server)
 				.then(function (response) {
-					var error = JSON.parse(response.payload);
-					expect(error.statusCode, "status").to.equal(400);
-					expect(error.message)
-					.to.equal("The Type entered does not exist. Ensure it is a valid EC2 type.");
+					result = JSON.parse(response.payload);
 				});
+
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("runInstances is called with the correct parameters", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal("t2.notExist");
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("service-maker");
+			});
+
+			it("returns an error with statusCode 400", function () {
+				expect(result.statusCode, "status").to.equal(400);
+				expect(result.message)
+				.to.equal("The Type entered does not exist. Ensure it is a valid EC2 type.");
+			});
+		});
+
+		describe("with a reserved security group name", function () {
+
+			var result;
+
+			before(function () {
+				var SecurityGroupError     = new Error();
+				SecurityGroupError.name    = "InvalidParameterValue";
+				SecurityGroupError.message = "The security group name entered is reserved";
+
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.rejects(SecurityGroupError);
+
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami           : VALID_AMI,
+					type          : "t2.micro",
+					securityGroup : "reserved-group"
+				});
+
+				return request.inject(server)
+				.then(function (response) {
+					result = JSON.parse(response.payload);
+				});
+
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("runInstances is called with the correct parameters", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ]).to.equal("reserved-group");
+			});
+
+			it("returns an error with statusCode 400", function () {
+				expect(result.statusCode, "status").to.equal(400);
+				expect(result.message)
+				.to.equal("The security group name entered is reserved");
 			});
 		});
 
 	});
 
 	describe("when there is a problem with the database connection", function () {
-			var mapper = new MemoryMapper();
-			var server = new Hapi.Server();
+		var mapper      = new MemoryMapper();
+		var server      = new Hapi.Server();
+		var environment = new Environment();
 
-			before(function () {
-				Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
-				server.connection();
-				return server.registerAsync({
-					register : Rest,
-					options  : {
-						mapper : mapper
-					}
-				});
-			});
+		before(function () {
+			Sinon.stub(mapper, "create").rejects(new Error("Simulated Failure."));
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
-			after(function () {
-				mapper.create.restore();
-				return server.stopAsync();
-			});
-
-			it("returns an internal server error with status code 500", function () {
-				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
-					ami  : VALID_AMI,
-					type : VALID_TYPE
-				});
-				return request.inject(server)
-				.then(function (response) {
-					expect(response.result.message).to.equal("An internal server error occurred");
-					expect(response.statusCode).to.equal(500);
-				});
-
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					mapper : mapper
+				}
 			});
 		});
 
+		after(function () {
+			environment.restore();
+			mapper.create.restore();
+			return server.stopAsync();
+		});
+
+		it("returns an internal server error with status code 500", function () {
+			var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+				ami  : VALID_AMI,
+				type : VALID_TYPE
+			});
+			return request.inject(server)
+			.then(function (response) {
+				expect(response.result.message).to.equal("An internal server error occurred");
+				expect(response.statusCode).to.equal(500);
+			});
+
+		});
+	});
+
 	describe("getting an instance", function () {
 
-		var server = new Hapi.Server();
+		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
-		var awsAdapter = new AwsAdapter();
+		var awsAdapter      = new AwsAdapter();
+		var environment     = new Environment();
 
 		before(function () {
+
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
 			server.connection();
 			return server.registerAsync({
@@ -296,6 +471,7 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
+			environment.restore();
 			return server.stopAsync();
 		});
 
@@ -486,9 +662,14 @@ describe("The Rest plugin", function () {
 
 		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
+		var environment     = new Environment();
 
 		before(function () {
+
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
+
 			server.connection();
+
 			return server.registerAsync({
 				register : Rest,
 				options  : {
@@ -498,6 +679,7 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
+			environment.restore();
 			return server.stopAsync();
 		});
 
@@ -718,10 +900,12 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("encountering an internal error", function () {
-		var server    = new Hapi.Server();
-		var instances = new InstanceAdapter();
-
+		var server      = new Hapi.Server();
+		var instances   = new InstanceAdapter();
+		var environment = new Environment();
 		before(function () {
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
+
 			server.connection();
 			return server.registerAsync({
 				register : Rest,
@@ -732,6 +916,7 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
+			environment.restore();
 			return server.stopAsync();
 		});
 
@@ -781,11 +966,13 @@ describe("The Rest plugin", function () {
 
 	describe("updating a created instance", function () {
 
-		var server     = new Hapi.Server();
-		var instances  = new InstanceAdapter();
-		var awsAdapter = new AwsAdapter();
-
+		var server      = new Hapi.Server();
+		var instances   = new InstanceAdapter();
+		var awsAdapter  = new AwsAdapter();
+		var environment = new Environment();
 		before(function () {
+
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
 			server.connection();
 			return server.registerAsync({
@@ -795,6 +982,11 @@ describe("The Rest plugin", function () {
 					awsAdapter : awsAdapter
 				}
 			});
+		});
+
+		after(function () {
+			environment.restore();
+			return server.stopAsync();
 		});
 
 		describe("setting the state of a created instance to terminated", function () {
@@ -1073,6 +1265,7 @@ describe("The Rest plugin", function () {
 
 				after(function () {
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("throws a 500 error", function () {
@@ -1146,6 +1339,7 @@ describe("The Rest plugin", function () {
 				after(function () {
 					terminateInstancesStub.restore();
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("terminateInstances is called with the instance ID", function () {
@@ -1248,6 +1442,7 @@ describe("The Rest plugin", function () {
 					terminateInstancesStub.restore();
 					updateStub.restore();
 					getStub.restore();
+					server.stopAsync();
 				});
 
 				it("terminateInstances is called with the instance ID", function () {
@@ -1351,6 +1546,7 @@ describe("The Rest plugin", function () {
 					terminateInstancesStub.restore();
 					updateStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("terminateInstances is called with the instance ID", function () {
@@ -1422,6 +1618,7 @@ describe("The Rest plugin", function () {
 				after(function () {
 					terminateInstancesStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("terminateInstances is called with the instance ID", function () {
@@ -1712,6 +1909,7 @@ describe("The Rest plugin", function () {
 
 				after(function () {
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("throws a 500 error", function () {
@@ -1743,7 +1941,7 @@ describe("The Rest plugin", function () {
 						);
 						updateStub.onCall(1).rejects(new Error("Connection to the database fails."));
 
-						//revision reflects the document is updated twice when terminateInstances() is successful.
+						//revision reflects the document is updated twice when stopInstances() is successful.
 						stopInstancesStub = Sinon.stub(awsAdapter, "stopInstances").returns(
 							Bluebird.resolve({
 								id       : instance.id,
@@ -1782,6 +1980,7 @@ describe("The Rest plugin", function () {
 				after(function () {
 					stopInstancesStub.restore();
 					updateStub.restore();
+					return server.stopAsync();
 				});
 
 				it("updateInstance is called with the correct parameters the second time", function () {
@@ -1892,6 +2091,7 @@ describe("The Rest plugin", function () {
 					stopInstancesStub.restore();
 					updateStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("stopInstances is called with the instance ID", function () {
@@ -1995,6 +2195,7 @@ describe("The Rest plugin", function () {
 					stopInstancesStub.restore();
 					updateStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("updateInstance is called with the correct parameters the second time", function () {
@@ -2066,6 +2267,7 @@ describe("The Rest plugin", function () {
 				after(function () {
 					stopInstancesStub.restore();
 					getStub.restore();
+					return server.stopAsync();
 				});
 
 				it("stopInstances is called with the instance ID", function () {
@@ -2081,6 +2283,293 @@ describe("The Rest plugin", function () {
 					expect(response.statusCode).to.equal(200);
 				});
 			});
+		});
+
+		describe("starting a previously stopped instance", function () {
+
+			var instanceID;
+			var revision;
+			var responseCode;
+			var updatedInstance;
+			var startInstancesStub;
+
+			describe("when the instance is valid", function () {
+
+				before(function (done) {
+
+					return instances.createInstance()
+					.then(function (instance) {
+						instanceID = instance.id;
+						revision   = instance.revision;
+						//revision reflects the document is updated twice when startInstances() is successful.
+						startInstancesStub = Sinon.stub(awsAdapter, "startInstances", function () {
+							return Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "running",
+								uri      : "https://" + VALID_IP_ADDRESS,
+								revision : instance.revision + 2
+							})
+							.then(function (result) {
+								done();
+								return result;
+							});
+
+						});
+
+						updatedInstance = new Instance({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "running",
+							uri      : "https://" + VALID_IP_ADDRESS,
+							revision : instance.revision + 2
+						});
+
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : instance.ami,
+							type     : instance.type,
+							uri      : instance.uri,
+							state    : "pending",
+							revision : instance.revision
+						});
+						return request.inject(server);
+					})
+					.then(function (response) {
+						responseCode = response.statusCode;
+					});
+				});
+
+				after(function () {
+					startInstancesStub.restore();
+				});
+
+				it("startInstances is called with the correct parameters", function () {
+					expect(startInstancesStub.firstCall.args[ 0 ].id).to.equal(updatedInstance.id);
+					expect(startInstancesStub.firstCall.args[ 0 ].ami).to.equal(updatedInstance.ami);
+					expect(startInstancesStub.firstCall.args[ 0 ].type).to.equal(updatedInstance.type);
+					expect(startInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+					expect(startInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+					expect(startInstancesStub.firstCall.args[ 0 ].revision).to.equal(revision + 1);
+				});
+
+				it("a reply with 200 OK is sent", function () {
+					expect(responseCode).to.equal(200);
+				});
+			});
+
+			describe("when the instance ID doesn't exist", function () {
+
+				var result;
+
+				before(function () {
+					var request = new Request("PUT", "/v1/instances/" + INVALID_QUERY).mime("application/json")
+					.payload({
+						ami      : "ami-d05e75b8",
+						type     : "t2.micro",
+						uri      : null,
+						state    : "pending",
+						revision : 0
+					});
+
+					return request.inject(server)
+					.then(function (response) {
+						result = response;
+					});
+				});
+
+				it("a 404 error is thrown", function () {
+					expect(result.statusCode).to.equal(404);
+				});
+			});
+
+			describe("when the payload is malformed", function () {
+
+				var result;
+
+				before(function () {
+					return instances.createInstance()
+					.then(function (instance) {
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : [ "ami-d05e75b8" ],
+							type     : "t2.micro",
+							uri      : null,
+							state    : "pending",
+							revision : instance.revision
+						});
+						return request.inject(server);
+					})
+					.then(function (response) {
+						result = response;
+					});
+				});
+
+				it("a 400 error is thrown", function () {
+					expect(result.statusCode).to.equal(400);
+				});
+			});
+
+			describe("when two requests are made simultaneously", function () {
+
+				var responses;
+				var startInstancesStub;
+
+				before(function (done) {
+					return instances.createInstance()
+					.then(function (instance) {
+						//revision reflects the document is updated twice when startInstances() is successful.
+						startInstancesStub = Sinon.stub(awsAdapter, "startInstances", function () {
+
+							return Bluebird.resolve({
+								id       : instance.id,
+								ami      : instance.ami,
+								type     : instance.type,
+								state    : "running",
+								uri      : "https://" + VALID_IP_ADDRESS,
+								revision : instance.revision + 2
+							})
+							.then(function (result) {
+								done();
+								return result;
+							});
+						});
+						return instances.getInstance({ id : instance.id });
+					})
+					.then(function (instance) {
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : instance.ami,
+							type     : instance.type,
+							uri      : null,
+							state    : "pending",
+							revision : instance.revision
+						});
+
+						return Bluebird.join(request.inject(server), request.inject(server));
+					})
+					.then(function (results) {
+						responses = results;
+					});
+
+				});
+
+				after(function () {
+					startInstancesStub.restore();
+				});
+
+				it("one succeeds while the other fails", function () {
+					var failed = _.some(responses, function (responses) {
+						return responses.statusCode === 409;
+					});
+
+					expect (failed, "concurrency").to.be.true;
+				});
+			});
+
+			describe("when there is an AWS error", function () {
+
+				var startInstancesStub;
+				var instanceID;
+				var response;
+				var updatedInstance;
+
+				before(function () {
+					startInstancesStub = Sinon.stub(awsAdapter, "startInstances").rejects(new Error("AWS Error"));
+					return instances.createInstance()
+					.then(function (instance) {
+						instanceID = instance.id;
+
+						updatedInstance = new Instance({
+							id       : instance.id,
+							ami      : instance.ami,
+							type     : instance.type,
+							state    : "pending",
+							uri      : null,
+							revision : instance.revision + 1
+						});
+
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : instance.ami,
+							type     : instance.type,
+							uri      : instance.uri,
+							state    : "pending",
+							revision : instance.revision
+						});
+						return request.inject(server);
+					})
+					.then(function (result) {
+						response = result;
+					});
+				});
+
+				after(function () {
+					startInstancesStub.restore();
+				});
+
+				it("startInstances is called with the correct parameters", function () {
+					expect(startInstancesStub.firstCall.args[ 0 ]).to.deep.equal(updatedInstance);
+				});
+
+				it("returns the instance with state set to pending", function () {
+					expect(response.result.id).to.equal(instanceID);
+					expect(response.result.state).to.equal("pending");
+					expect(response.statusCode).to.equal(200);
+				});
+
+			});
+
+			describe("when the connection to the database fails", function () {
+
+				var result;
+				var updateStub;
+				var server    = new Hapi.Server();
+				var instances = new InstanceAdapter();
+
+				before(function () {
+					updateStub = Sinon.stub(instances, "updateInstance")
+					.rejects(new Error("Connection to database failed."));
+
+					server.connection();
+					server.registerAsync({
+						register : Rest,
+						options  : {
+							instances : instances
+						}
+					});
+					return instances.createInstance()
+					.then(function (instance) {
+						return instances.getInstance({ id : instance.id });
+					})
+					.then(function (instance) {
+						var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+						.payload({
+							ami      : instance.ami,
+							type     : instance.type,
+							uri      : instance.uri,
+							state    : "pending",
+							revision : instance.revision
+						});
+						return request.inject(server);
+					})
+					.then(function (response) {
+						result = response.result;
+					});
+				});
+
+				after(function () {
+					updateStub.restore();
+					return server.stopAsync();
+				});
+
+				it("throws a 500 error", function () {
+					expect(result.statusCode).to.equal(500);
+				});
+			});
+
 		});
 
 		describe("setting the status of an instance to a state not handled by update", function () {
@@ -2155,8 +2644,9 @@ describe("The Rest plugin", function () {
 		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
 		var awsAdapter      = new AwsAdapter();
-
+		var environment     = new Environment();
 		before(function () {
+			environment.set("AWS_DEFAULT_SECURITY_GROUP", VALID_SEC_GROUP);
 
 			server.connection();
 			return server.registerAsync({
@@ -2169,6 +2659,7 @@ describe("The Rest plugin", function () {
 		});
 
 		after(function () {
+			environment.restore();
 			return server.stopAsync();
 		});
 
@@ -2560,44 +3051,69 @@ describe("The Rest plugin", function () {
 	});
 
 	describe("fails to create a Database for Cache", function () {
-		var server          = new Hapi.Server();
 		var instanceAdapter = new InstanceAdapter();
 		var awsAdapter      = new AwsAdapter();
 		var result;
 		var cacheStartStub;
 
-		before(function () {
-			var catboxOptions = {
-				partition : "testing"
-			};
-			var cache = new Catbox.Client(CatboxMongoDb, catboxOptions);
+		describe("when it fails to start the DB", function () {
+			var server = new Hapi.Server();
 
-			cacheStartStub = Sinon.stub(cache, "startAsync").rejects(Error("Simulated Failure."));
-			server.connection();
-			return server.registerAsync({
-				register : Rest,
-				options  : {
-					instances  : instanceAdapter,
-					awsAdapter : awsAdapter,
-					cache      : cache
-				}
-			})
-			.then(function (data) {
-				console.log("GFofdsfsdF" + data);
-			})
-			.catch(function (err) {
-				console.log("Caught errr!");
-				result = err;
+			before(function () {
+				var catboxOptions = {
+					partition : "testing"
+				};
+				var cache = new Catbox.Client(CatboxMongoDb, catboxOptions);
+
+				cacheStartStub = Sinon.stub(cache, "startAsync").rejects(Error("Simulated Failure."));
+				server.connection();
+				return server.registerAsync({
+					register : Rest,
+					options  : {
+						instances  : instanceAdapter,
+						awsAdapter : awsAdapter,
+						cache      : cache
+					}
+				})
+				.catch(function (err) {
+					result = err;
+				});
+			});
+
+			after(function () {
+				cacheStartStub.restore();
+			});
+
+			it("throws an error", function () {
+				expect(result).to.be.an.instanceof(Error);
+				expect(result.message).to.equal("Simulated Failure.");
 			});
 		});
 
-		after(function () {
-			cacheStartStub.restore();
-		});
+		describe("when incorrect options are passed", function () {
+			var server = new Hapi.Server();
 
-		it("throws an error", function () {
-			expect(result).to.be.an.instanceof(Error);
-			expect(result.message).to.equal("Simulated Failure.");
+			before(function () {
+				var cache = "wrongOption!";
+
+				server.connection();
+				return server.registerAsync({
+					register : Rest,
+					options  : {
+						instances  : instanceAdapter,
+						awsAdapter : awsAdapter,
+						cache      : cache
+					}
+				})
+				.catch(function (err) {
+					result = err;
+				});
+			});
+
+			it("throws an error", function () {
+				expect(result).to.be.an.instanceof(Error);
+				expect(result.message).to.contain("not a function");
+			});
 		});
 	});
 });

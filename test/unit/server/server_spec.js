@@ -22,7 +22,6 @@ describe("The server", function () {
 	});
 
 	it("registers the Rest plugin", function () {
-		console.log("sdfdsfsdf" + restStub.callCount);
 		expect(restStub.calledOnce, "registered").to.be.true;
 	});
 });

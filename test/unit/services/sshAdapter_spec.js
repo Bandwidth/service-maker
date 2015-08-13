@@ -8,12 +8,12 @@ var Bluebird   = require("bluebird");
 
 describe("The SSH Adapter Class", function () {
 
-	var id                   = "i-fbf47257";
-	var options              = {};
-	var ec2                  = new AWS.EC2();
+	var id      = "i-fbf47257";
+	var options = {};
+	var ec2     = new AWS.EC2();
 
 	Bluebird.promisifyAll(ec2);
-	options.ec2 =  ec2;
+	options.ec2 = ec2;
 
 	describe("Checks if it is possible to ssh", function () {
 		describe("once the status checks have passed", function () {
