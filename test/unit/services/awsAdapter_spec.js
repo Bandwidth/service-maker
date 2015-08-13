@@ -10,6 +10,7 @@ var InstanceAdapter = require("../../../lib/services/instanceAdapter");
 var Instance        = require("../../../lib/models/Instance");
 var _               = require("lodash");
 var ec2             = new AWS.EC2();
+var S3              = new AWS.S3();
 
 Bluebird.promisifyAll(ec2);
 
@@ -28,27 +29,58 @@ describe("The AwsAdapter class ", function () {
 
 	var CREATE_SECURITY_OPTIONS = {
 		createSecurityGroup   : "created-group",
-		existingSecurityGroup : undefined
+		existingSecurityGroup : undefined,
+		createKeyName         : undefined,
+		existingKeyName       : undefined
 	};
 
 	var EXISTING_SECURITY_OPTIONS = {
 		createSecurityGroup   : undefined,
-		existingSecurityGroup : "existing-group"
+		existingSecurityGroup : "existing-group",
+		createKeyName         : undefined,
+		existingKeyName       : undefined
 	};
 
 	var INVALID_SECURITY_OPTIONS = {
 		createSecurityGroup   : "created-group",
-		existingSecurityGroup : "existing-group"
+		existingSecurityGroup : "existing-group",
+		createKeyName         : undefined,
+		existingKeyName       : undefined
 	};
 
 	var RESERVED_SECURITY_OPTIONS = {
 		createSecurityGroup   : "reserved-group",
-		existingSecurityGroup : undefined
+		existingSecurityGroup : undefined,
+		createKeyName         : undefined,
+		existingKeyName       : undefined
 	};
 
-	var DEFAULT_SECURITY_OPTIONS = {
+	var CREATE_KEY_OPTIONS = {
 		createSecurityGroup   : undefined,
-		existingSecurityGroup : undefined
+		existingSecurityGroup : undefined,
+		createKeyName         : "created-key",
+		existingKeyName       : undefined
+	};
+
+	var EXISTING_KEY_OPTIONS = {
+		createSecurityGroup   : undefined,
+		existingSecurityGroup : undefined,
+		createKeyName         : undefined,
+		existingKeyName       : "existing-key"
+	};
+
+	var INVALID_KEY_OPTIONS = {
+		createSecurityGroup   : undefined,
+		existingSecurityGroup : undefined,
+		createKeyName         : "created-key",
+		existingKeyName       : "existing-key"
+	};
+
+	var DEFAULT_OPTIONS = {
+		createSecurityGroup   : undefined,
+		existingSecurityGroup : undefined,
+		createKeyName         : undefined,
+		existingKeyName       : undefined
 	};
 
 	var DEFAULT_SSH_RULE = {
@@ -79,7 +111,7 @@ describe("The AwsAdapter class ", function () {
 
 	var instances  = new InstanceAdapter();
 
-	var awsOptions = { serverLog : serverLog, ec2 : ec2, instances : instances };
+	var awsOptions = { serverLog : serverLog, ec2 : ec2, instances : instances, s3 : S3 };
 
 	describe("trying to create a new instance", function () {
 		var createTagsStub;
@@ -100,6 +132,7 @@ describe("The AwsAdapter class ", function () {
 			var result;
 			var runInstancesStub;
 			var describeSecurityGroupsStub;
+			var describeKeyPairsStub;
 			var createSecurityGroupStub;
 			var authorizeSecurityGroupIngressStub;
 
@@ -111,6 +144,9 @@ describe("The AwsAdapter class ", function () {
 				authorizeSecurityGroupIngressStub = Sinon.stub(ec2, "authorizeSecurityGroupIngressAsync")
 				.resolves("test");
 
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.resolves("service-maker");
+
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
 						Instances : [ {
 							InstanceId : "test"
@@ -118,7 +154,7 @@ describe("The AwsAdapter class ", function () {
 				});
 
 				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
-				.resolves("test");
+				.resolves("created-group");
 
 				return awsAdapter.runInstances(VALID_INSTANCE, CREATE_SECURITY_OPTIONS)
 				.then(function (response) {
@@ -131,10 +167,11 @@ describe("The AwsAdapter class ", function () {
 				createSecurityGroupStub.restore();
 				describeSecurityGroupsStub.restore();
 				authorizeSecurityGroupIngressStub.restore();
+				describeKeyPairsStub.restore();
 			});
 
 			it("creates the security group", function () {
-				expect(createSecurityGroupStub.firstCall.args[ 0 ].GroupName[ 0 ]).to.equal("created-group");
+				expect(createSecurityGroupStub.firstCall.args[ 0 ].GroupName).to.equal("created-group");
 			});
 
 			it("adds rules for SSH to the security group", function () {
@@ -144,12 +181,15 @@ describe("The AwsAdapter class ", function () {
 				.to.deep.equal(DEFAULT_SSH_RULE);
 			});
 
+			//it("creates ")
+
 			it("creates the instance with the ami, type and new security group", function () {
-				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
-				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal("created-group");
+				expect(runInstancesStub.firstCall.args[ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].SecurityGroups[ 0 ]).to.equal("created-group");
+				expect(runInstancesStub.firstCall.args[ 0 ].KeyName).to.equal("service-maker");
 			});
 
 			it("returns the instance to the user", function  () {
@@ -163,6 +203,7 @@ describe("The AwsAdapter class ", function () {
 			var result;
 			var runInstancesStub;
 			var describeSecurityGroupsStub;
+			var describeKeyPairsStub;
 
 			before(function () {
 
@@ -174,6 +215,11 @@ describe("The AwsAdapter class ", function () {
 
 				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
 				.resolves("test");
+
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.resolves("service-maker");
+
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
 
 				return awsAdapter.runInstances(VALID_INSTANCE, EXISTING_SECURITY_OPTIONS)
 				.then(function (response) {
@@ -184,56 +230,16 @@ describe("The AwsAdapter class ", function () {
 			after(function () {
 				runInstancesStub.restore();
 				describeSecurityGroupsStub.restore();
+				describeKeyPairsStub.restore();
 			});
 
 			it("and returns a new instance with the ami, type and existing security group", function () {
-				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
-				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal("existing-group");
-			});
-
-			it("returns the instance to the user", function () {
-				expect(result.ami, "response").to.equal("ami-d05e75b8");
-				expect(result.type, "response").to.equal("t2.micro");
-			});
-		});
-
-		describe("with the default security group", function () {
-
-			var result;
-			var runInstancesStub;
-			var describeSecurityGroupsStub;
-
-			before(function () {
-
-				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
-						Instances : [ {
-							InstanceId : "test"
-						} ]
-				});
-
-				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
-				.resolves("test");
-
-				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SECURITY_OPTIONS)
-				.then(function (response) {
-					result = response;
-				});
-			});
-
-			after(function () {
-				runInstancesStub.restore();
-				describeSecurityGroupsStub.restore();
-			});
-
-			it("and returns a new instance with the ami, type and default security group", function () {
-				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
-				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].SecurityGroups[ 0 ]).to.equal("existing-group");
+				expect(runInstancesStub.firstCall.args[ 0 ].KeyName).to.equal("service-maker");
 			});
 
 			it("returns the instance to the user", function () {
@@ -275,7 +281,7 @@ describe("The AwsAdapter class ", function () {
 			});
 
 			it("calls createSecurityGroupAsync with the correct parameters", function () {
-				expect(createSecurityGroupStub.firstCall.args[ 0 ].GroupName[ 0 ]).to.equal("reserved-group");
+				expect(createSecurityGroupStub.firstCall.args[ 0 ].GroupName).to.equal("reserved-group");
 			});
 
 			it("no security group rules are created", function () {
@@ -302,8 +308,7 @@ describe("The AwsAdapter class ", function () {
 
 			it("throws an error", function () {
 				expect(result.name).to.equal("ValidationError");
-				expect(result.message).to
-				.equal("Bad request: Both createSecurityGroup and existingSecurityGroup were specified.");
+				expect(result.message).to.equal("Bad request: Error with security groups.");
 			});
 		});
 
@@ -327,7 +332,7 @@ describe("The AwsAdapter class ", function () {
 						} ]
 				});
 
-				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SECURITY_OPTIONS)
+				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_OPTIONS)
 				.then(function (response) {
 					result = response;
 				})
@@ -356,11 +361,312 @@ describe("The AwsAdapter class ", function () {
 
 		});
 
+		describe("creating a new key-pair", function () {
+
+			var result;
+			var runInstancesStub;
+			var describeSecurityGroupsStub;
+			var createKeyPairStub;
+
+			before(function () {
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
+				createKeyPairStub = Sinon.stub(ec2, "createKeyPairAsync")
+				.resolves("created-key");
+
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, CREATE_KEY_OPTIONS)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				describeSecurityGroupsStub.restore();
+				createKeyPairStub.restore();
+			});
+
+			it("and returns a new instance with the ami, type and default security group", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].SecurityGroups[ 0 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 0 ].KeyName).to.equal("created-key");
+			});
+
+			it("returns the instance to the user", function () {
+				expect(result.ami, "response").to.equal("ami-d05e75b8");
+				expect(result.type, "response").to.equal("t2.micro");
+			});
+		});
+
+		describe("with a key-pair that already exists", function () {
+
+			var result;
+			var runInstancesStub;
+			var beginPollingStub;
+			var describeSecurityGroupsStub;
+			var describeKeyPairsStub;
+
+			before(function () {
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.resolves("existing-key");
+
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, EXISTING_KEY_OPTIONS)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				beginPollingStub.restore();
+				describeSecurityGroupsStub.restore();
+				describeKeyPairsStub.restore();
+			});
+
+			it("and returns a new instance with the ami, type and default security group", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].SecurityGroups[ 0 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 0 ].KeyName).to.equal("existing-key");
+			});
+
+			it("returns the instance to the user", function () {
+				expect(result.ami, "response").to.equal("ami-d05e75b8");
+				expect(result.type, "response").to.equal("t2.micro");
+			});
+		});
+
+		describe("when an error occurs while using an existing key-pair name", function () {
+
+			var result;
+			var runInstancesStub;
+			var beginPollingStub;
+			var describeSecurityGroupsStub;
+			var createKeyPairStub;
+
+			before(function () {
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
+				createKeyPairStub = Sinon.stub(ec2, "createKeyPairAsync")
+				.rejects("Simulated Failure");
+
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, CREATE_KEY_OPTIONS)
+				.catch(function (error) {
+					result = error;
+				});
+
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				beginPollingStub.restore();
+				describeSecurityGroupsStub.restore();
+				createKeyPairStub.restore();
+			});
+
+			it("calls describeSecurityGroupsAsync with the correct parameters", function () {
+				expect(describeSecurityGroupsStub.firstCall.args[ 0 ].GroupNames[ 0 ]).to.equal("service-maker");
+			});
+
+			it("calls createKeyPairAsync with the correct parameters", function () {
+				expect(createKeyPairStub.firstCall.args[ 0 ].KeyName).to.equal("created-key");
+			});
+
+			it("throws an error", function () {
+				expect(result.name).to.equal("ValidationError");
+				expect(result.message).to
+				.equal("Bad request: Both createSecurityGroup and existingSecurityGroup were specified.");
+			});
+
+			it("doesn't create a new instance", function () {
+				expect(runInstancesStub.callCount).to.equal(0);
+			});
+
+		});
+
+		describe("when an error occurs while using an existing key-pair name", function () {
+
+			var result;
+			var runInstancesStub;
+			var beginPollingStub;
+			var describeSecurityGroupsStub;
+			var describeKeyPairsStub;
+
+			before(function () {
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.rejects("Simulated Failure");
+
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, EXISTING_KEY_OPTIONS)
+				.catch(function (error) {
+					result = error;
+				});
+
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				beginPollingStub.restore();
+				describeSecurityGroupsStub.restore();
+				describeKeyPairsStub.restore();
+			});
+
+			it("calls describeSecurityGroupsAsync with the correct parameters", function () {
+				expect(describeSecurityGroupsStub.firstCall.args[ 0 ].GroupNames[ 0 ]).to.equal("service-maker");
+			});
+
+			it("calls describeKeyPairsAsync with the correct parameters", function () {
+				expect(describeKeyPairsStub.firstCall.args[ 0 ].KeyName[ 0 ]).to.equal("existing-key");
+			});
+
+			it("throws an error", function () {
+				expect(result, "error").to.be.instanceof(Error);
+				expect(result.message).to.equal("Simulated Failure");
+			});
+
+			it("doesn't create a new instance", function () {
+				expect(runInstancesStub.callCount).to.equal(0);
+			});
+
+		});
+
+		describe("when both create and existing key-pair name parameters are set", function () {
+
+			var result;
+			var createSecurityGroupStub;
+
+			before(function () {
+
+				createSecurityGroupStub = Sinon.stub(awsAdapter, "createSecurityGroup")
+				.resolves("service-maker");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, INVALID_KEY_OPTIONS)
+				.catch(function (error) {
+					result = error;
+				});
+			});
+
+			after(function () {
+				createSecurityGroupStub.restore();
+			});
+
+			it("createSecurityGroup is called with the correct parameters", function () {
+				expect(createSecurityGroupStub.firstCall.args[ 0 ]).to.equal(undefined);
+				expect(createSecurityGroupStub.firstCall.args[ 1 ]).to.equal(undefined);
+			});
+
+			it("throws an error", function () {
+				expect(result.name).to.equal("ValidationError");
+				expect(result.message).to.equal("Bad request: Two key-pair names were specified.");
+			});
+		});
+
+		describe("with the default security group and key-pair", function () {
+
+			var result;
+			var runInstancesStub;
+			var beginPollingStub;
+			var describeSecurityGroupsStub;
+			var describeKeyPairsStub;
+
+			before(function () {
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.resolves("service-maker");
+
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_OPTIONS)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				beginPollingStub.restore();
+				describeSecurityGroupsStub.restore();
+				describeKeyPairsStub.restore();
+			});
+
+			it("and returns a new instance with the ami, type and default security group", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].SecurityGroups[ 0 ]).to.equal("service-maker");
+				expect(runInstancesStub.firstCall.args[ 0 ].KeyName).to.equal("service-maker");
+			});
+
+			it("returns the instance to the user", function () {
+				expect(result.ami, "response").to.equal("ami-d05e75b8");
+				expect(result.type, "response").to.equal("t2.micro");
+			});
+		});
+
 		describe("with invalid ami", function () {
 
 			var result;
 			var runInstancesStub;
 			var createSecurityGroupStub;
+			var describeKeyPairsStub;
 
 			before(function () {
 
@@ -368,11 +674,14 @@ describe("The AwsAdapter class ", function () {
 				AMIError.name = "InvalidAMIID.Malformed";
 				AMIError.message = "The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.";
 
-				createSecurityGroupStub = Sinon.stub(awsAdapter, "getSecurityGroup").resolves("test");
+				createSecurityGroupStub = Sinon.stub(awsAdapter, "createSecurityGroup").resolves("test");
 
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").rejects(AMIError);
 
-				return awsAdapter.runInstances(INVALID_INSTANCE_AMI, DEFAULT_SECURITY_OPTIONS)
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.resolves("service-maker");
+
+				return awsAdapter.runInstances(INVALID_INSTANCE_AMI, DEFAULT_OPTIONS)
 				.then(function (response) {
 					result = response;
 				})
@@ -384,15 +693,16 @@ describe("The AwsAdapter class ", function () {
 			after(function () {
 				runInstancesStub.restore();
 				createSecurityGroupStub.restore();
+				describeKeyPairsStub.restore();
 			});
 
 			it("throws an InvalidAMIID.Malformed error", function () {
 				expect(result, "error").to.be.instanceof(Error);
 				expect(result.message).to.equal("The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.");
-				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(INVALID_AMI);
-				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].ImageId).to.equal(INVALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].MinCount).to.equal(1);
 			});
 		});
 
@@ -401,6 +711,7 @@ describe("The AwsAdapter class ", function () {
 			var result;
 			var runInstancesStub;
 			var createSecurityGroupStub;
+			var describeKeyPairsStub;
 
 			before(function () {
 
@@ -408,11 +719,14 @@ describe("The AwsAdapter class ", function () {
 				TypeError.name = "InvalidParameterValue";
 				TypeError.message = "The Type entered does not exist. Ensure it is a valid EC2 type.";
 
-				createSecurityGroupStub = Sinon.stub(awsAdapter, "getSecurityGroup").resolves("test");
+				createSecurityGroupStub = Sinon.stub(awsAdapter, "createSecurityGroup").resolves("test");
+
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.resolves("service-maker");
 
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").rejects(TypeError);
 
-				return awsAdapter.runInstances(INVALID_INSTANCE_TYPE, DEFAULT_SECURITY_OPTIONS)
+				return awsAdapter.runInstances(INVALID_INSTANCE_TYPE, DEFAULT_OPTIONS)
 				.then(function (response) {
 					result = response;
 				})
@@ -424,6 +738,7 @@ describe("The AwsAdapter class ", function () {
 			after(function () {
 				runInstancesStub.restore();
 				createSecurityGroupStub.restore();
+				describeKeyPairsStub.restore();
 			});
 
 			it("throws an InvalidParameterValue", function () {
@@ -840,6 +1155,24 @@ describe("The AwsAdapter class ", function () {
 			it("starts terminating the instance", function () {
 				expect(stopInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
 			});
+		});
+
+		describe("with invalid parameters", function () {
+			var awsAdapter;
+			var result;
+			var options = {};
+			options.sshAdapter = new SshAdapter(ec2);
+			options.instances = "thisIswrong";
+			options.ec2 = ec2;
+			options.s3  = S3;
+			options.serverLog = function () { };
+			before(function () {
+				try {
+					awsAdapter = new AwsAdapter(options);
+				}
+				catch (err) {
+					result = err;
+				}
 
 			it("times out", function () {
 				expect(result.message).to.contain("timed out");
