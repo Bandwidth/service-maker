@@ -159,6 +159,50 @@ describe("The Rest plugin", function () {
 			});
 		});
 
+		describe("with valid parameters passed - using an existing security group", function () {
+			var result;
+
+			before(function () {
+				runInstancesStub = Sinon.stub(awsAdapter, "runInstances")
+				.returns(Bluebird.resolve({
+					id       : "0373ee03-ac16-42ec-b81c-37986d4bcb01",
+					ami      : "ami-d05e75b8",
+					type     : "t2.micro",
+					revision : 0,
+					state    : "pending",
+					uri      : null
+				}));
+
+				var request = new Request("POST", "/v1/instances").mime("application/json").payload({
+					ami                   : VALID_AMI,
+					type                  : VALID_TYPE,
+					existingSecurityGroup : VALID_SEC_GROUP
+				});
+				return request.inject(server)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+			});
+
+			it("creates the instance with the parameters passed", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].id).to.match(ID_REGEX);
+				expect(runInstancesStub.firstCall.args[ 0 ].ami).to.equal(VALID_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].type).to.equal(VALID_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].state).to.equal("pending");
+				expect(runInstancesStub.firstCall.args[ 0 ].uri).to.equal(null);
+				expect(runInstancesStub.firstCall.args[ 1 ].existingSecurityGroup).to.equal(VALID_SEC_GROUP);
+			});
+
+			it("returns the canonical uri with appropriate an statusCode", function () {
+				expect(result.statusCode, "status").to.equal(201);
+				expect(result.headers.location, "location").to.match(location);
+			});
+		});
+
 		describe("with no parameters passed", function () {
 			var result;
 
