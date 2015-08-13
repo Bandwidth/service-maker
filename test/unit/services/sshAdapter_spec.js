@@ -11,7 +11,6 @@ describe("The SSH Adapter Class", function () {
 	var id                   = "i-fbf47257";
 	var options              = {};
 	var ec2                  = new AWS.EC2();
-	var SSH_POLLING_INTERVAL = 30; //Time in Seconds
 
 	Bluebird.promisifyAll(ec2);
 	options.ec2 =  ec2;
@@ -146,159 +145,6 @@ describe("The SSH Adapter Class", function () {
 
 	});
 
-	describe("Starts ssh Polling", function () {
-
-		describe("when system checks have passed", function () {
-			var canSshStub;
-			var result;
-			var sshAdapter = new SshAdapter(ec2);
-			before(function () {
-				canSshStub = sinon.stub(sshAdapter,"canSsh", function () {
-					return (Bluebird.resolve(true));
-				});
-
-				return sshAdapter.SshPolling(id)
-				.then(function (data) {
-					result = data;
-				});
-			});
-
-			after(function () {
-				canSshStub.restore();
-			});
-
-			it("is possible to ssh now", function () {
-				expect(result).to.be.true;
-			});
-		});
-
-		describe("when it is still performing system checks", function () {
-			var canSshStub;
-			var delayStub;
-			var clock;
-			var count = 0;
-			var sshAdapter = new SshAdapter(ec2);
-			before(function () {
-				clock = sinon.useFakeTimers();
-				canSshStub = sinon.stub(sshAdapter,"canSsh",function () {
-					//First time it will return false. Second time will return true
-					if (count > 0) {
-						return Bluebird.resolve(true);
-					}
-					count = count + 1;
-					return Bluebird.resolve(false);
-				});
-				delayStub = sinon.stub(Bluebird,"delay", function () {
-					clock.tick(SSH_POLLING_INTERVAL * 1000);
-					return Bluebird.resolve();
-				});
-			});
-
-			after(function () {
-				canSshStub.restore();
-				clock.restore();
-				delayStub.restore();
-			});
-
-			it("is possible to ssh eventually", function () {
-				return sshAdapter.SshPolling(id)
-				.then(function (data) {
-					expect(data).to.be.true;
-					expect(count).to.equal(1);
-					expect(canSshStub.callCount).to.equal(2);
-				});
-			});
-		});
-
-		describe("when system checks have failed", function () {
-			var canSshStub;
-			var result;
-			var sshAdapter = new SshAdapter(ec2);
-			before(function () {
-				canSshStub = sinon.stub(sshAdapter,"canSsh", function () {
-					return (Bluebird.reject(new Error("System Checks Failed")));
-				});
-
-				sshAdapter.SshPolling(id)
-				.catch(function (err) {
-					result = err;
-				});
-			});
-
-			after(function () {
-				canSshStub.restore();
-			});
-
-			it("it throws an error", function () {
-				expect(result).to.be.an.instanceOf(Error);
-				expect(result.message).to.be.equal("System Checks Failed");
-			});
-		});
-
-		describe("when system checks detects insufficient-data", function () {
-			var canSshStub;
-			var result;
-			var sshAdapter = new SshAdapter(ec2);
-			before(function () {
-				canSshStub = sinon.stub(sshAdapter,"canSsh", function () {
-					return (Bluebird.reject(new Error("System Checks Failed due to insufficient data")));
-				});
-
-				return sshAdapter.SshPolling(id)
-				.catch(function (err) {
-					result = err;
-				});
-			});
-
-			after(function () {
-				canSshStub.restore();
-			});
-
-			it("it throws an error", function () {
-				expect(result).to.be.an.instanceOf(Error);
-				expect(result.message).to.be.equal("System Checks Failed due to insufficient data");
-			});
-		});
-
-		describe("when ssh polling encounters a timeout", function () {
-			var canSshStub;
-			var result;
-			var delayStub;
-			var clock;
-			var TOTAL_NO_OF_ATTEMPTS = 15;
-			var sshAdapter = new SshAdapter(ec2);
-			before(function () {
-				clock = sinon.useFakeTimers();
-
-				canSshStub = sinon.stub(sshAdapter,"canSsh", function () {
-					return (Bluebird.resolve(false));
-				});
-
-				delayStub = sinon.stub(Bluebird,"delay", function () {
-					clock.tick(SSH_POLLING_INTERVAL * 1000);
-					return Bluebird.resolve();
-				});
-
-				return sshAdapter.SshPolling(id)
-				.catch(function (err) {
-					result = err;
-				});
-			});
-
-			after(function () {
-				canSshStub.restore();
-				delayStub.restore();
-			});
-
-			it("it throws an error", function () {
-				expect(result).to.be.an.instanceOf(Error);
-				expect(result.message).to.be.equal("Timeout occured!");
-				expect(canSshStub.callCount).to.equal(TOTAL_NO_OF_ATTEMPTS + 1);
-			});
-		});
-
-	});
-
 	describe("Aws faces an internal error", function () {
 		var instanceStatusStub;
 		var result;
@@ -307,7 +153,7 @@ describe("The SSH Adapter Class", function () {
 			instanceStatusStub = sinon.stub(ec2, "describeInstanceStatusAsync")
 				.rejects(new Error("Simulated Failure"));
 
-			return sshAdapter.SshPolling(id)
+			return sshAdapter.canSsh(id)
 			.catch(function (error) {
 				result = error;
 			});

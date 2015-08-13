@@ -11,6 +11,8 @@ var Instance        = require("../../../lib/models/Instance");
 var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var Sinon           = require("sinon");
 var _               = require("lodash");
+var Catbox          = require("catbox");
+var CatboxMongoDb   = require("catbox-mongodb");
 
 require("sinon-as-promised");
 
@@ -364,7 +366,120 @@ describe("The Rest plugin", function () {
 			});
 		});
 
-		describe("from a cached instance"
+		describe("from a cached instance", function () {
+			var id;
+			var firstResponse;
+			var secondResponse;
+			var updatedInstance;
+			var checkInstanceStatusStub;
+			var firstResponsePayload;
+			var secondResponsePayload;
+
+			before(function () {
+
+				checkInstanceStatusStub = Sinon.stub(awsAdapter, "checkInstanceStatus")
+				.returns(Bluebird.resolve({
+					id    : VALID_INSTANCE_ID,
+					ami   : "ami-d05e75b8",
+					type  : "t2.micro",
+					state : "pending",
+					uri   : null
+				}));
+
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					id = instance.id;
+					return new Request("GET", "/v1/instances/" + id).inject(server);
+				})
+				.then(function (response) {
+					firstResponse = response;
+					firstResponsePayload = JSON.parse(response.payload);
+					var recvdInstance = JSON.parse(response.payload);
+					recvdInstance.uri = "https://127.0.0.1";
+					updatedInstance = new Instance(recvdInstance);
+					return updatedInstance;
+				})
+				.then(function () {
+					return new Request("GET", "/v1/instances/" + id).inject(server);
+				})
+				.then(function (response) {
+					secondResponse = response;
+					secondResponsePayload = JSON.parse(response.payload);
+				});
+			});
+
+			after(function () {
+				checkInstanceStatusStub.restore();
+			});
+
+			it("gets a cached version of the instance", function () {
+				expect(firstResponse.statusCode).to.equal(200);
+				expect(firstResponsePayload.uri).to.equal(null);
+				expect(updatedInstance.uri).to.equal("https://127.0.0.1");
+				expect(secondResponse.statusCode).to.equal(200);
+				expect(secondResponsePayload.uri).to.equal(null);
+				expect(checkInstanceStatusStub.callCount).to.be.equal(1);
+			});
+		});
+
+		describe("which is in ready state", function () {
+			var getInstanceStub;
+
+			before(function () {
+				getInstanceStub = Sinon.stub(instanceAdapter, "getInstance")
+				.returns(Bluebird.resolve({
+					id    : VALID_INSTANCE_ID,
+					ami   : "ami-d05e75b8",
+					type  : "t2.micro",
+					state : "ready",
+					uri   : ""
+				}));
+			});
+
+			after(function () {
+				getInstanceStub.restore();
+			});
+
+			it("gets the instance of the requsted id", function () {
+				return new Request("GET", "/v1/instances/" + VALID_INSTANCE_ID).inject(server)
+				.then(function (response) {
+					var res = JSON.parse(response.payload);
+					expect(response.statusCode,"status").to.equal(200);
+					expect(res.id).to.match(ID_REGEX);
+					expect(res.ami).to.equal(VALID_AMI);
+					expect(res.type).to.equal(VALID_TYPE);
+					expect(res.state).to.equal("ready");
+					expect(getInstanceStub.args[ 0 ][ 0 ].id).to.equal(VALID_INSTANCE_ID);
+				});
+			});
+		});
+
+		describe("when awsAdapter encounters an error", function () {
+			var result;
+			var checkInstanceStatusStub;
+
+			before(function () {
+				checkInstanceStatusStub = Sinon.stub(awsAdapter, "checkInstanceStatus")
+				.rejects(new Error("Simulated Failure."));
+
+				return instanceAdapter.createInstance()
+				.then(function (instance) {
+					return new Request("GET", "/v1/instances/" + instance.id).inject(server);
+				})
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				checkInstanceStatusStub.restore();
+			});
+
+			it("returns a 500 error", function () {
+				expect(result.statusCode).to.equal(500);
+				expect(checkInstanceStatusStub.callCount).to.equal(1);
+			});
+		});
 	});
 
 	describe("querying for instances", function () {
@@ -2441,6 +2556,48 @@ describe("The Rest plugin", function () {
 				//This is returned to the user before the rest of the function executes
 				expect(result.state).to.equal("terminating");
 			});
+		});
+	});
+
+	describe("fails to create a Database for Cache", function () {
+		var server          = new Hapi.Server();
+		var instanceAdapter = new InstanceAdapter();
+		var awsAdapter      = new AwsAdapter();
+		var result;
+		var cacheStartStub;
+
+		before(function () {
+			var catboxOptions = {
+				partition : "testing"
+			};
+			var cache = new Catbox.Client(CatboxMongoDb, catboxOptions);
+
+			cacheStartStub = Sinon.stub(cache, "startAsync").rejects(Error("Simulated Failure."));
+			server.connection();
+			return server.registerAsync({
+				register : Rest,
+				options  : {
+					instances  : instanceAdapter,
+					awsAdapter : awsAdapter,
+					cache      : cache
+				}
+			})
+			.then(function (data) {
+				console.log("GFofdsfsdF" + data);
+			})
+			.catch(function (err) {
+				console.log("Caught errr!");
+				result = err;
+			});
+		});
+
+		after(function () {
+			cacheStartStub.restore();
+		});
+
+		it("throws an error", function () {
+			expect(result).to.be.an.instanceof(Error);
+			expect(result.message).to.equal("Simulated Failure.");
 		});
 	});
 });
