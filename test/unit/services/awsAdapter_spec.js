@@ -470,7 +470,7 @@ describe("The AwsAdapter class ", function () {
 			});
 		});
 
-		describe("when an error occurs while using an existing key-pair name", function () {
+		describe("when an error occurs while creating a new key-pair", function () {
 
 			var result;
 			var runInstancesStub;
@@ -618,7 +618,7 @@ describe("The AwsAdapter class ", function () {
 			});
 		});
 
-		describe("with the default key-pair when it has been deleted from S3", function () {
+		describe("when the default key-pair has been deleted from S3, creating the default", function () {
 
 			var result;
 			var runInstancesStub;
@@ -683,7 +683,7 @@ describe("The AwsAdapter class ", function () {
 			});
 		});
 
-		describe("with the default key-pair when it has been deleted from S3", function () {
+		describe("when the default key-pair has been deleted from S3, and creating a new one fails", function () {
 
 			var result;
 			var runInstancesStub;
@@ -727,7 +727,7 @@ describe("The AwsAdapter class ", function () {
 				expect(runInstancesStub.callCount).to.equal(0);
 			});
 
-			it("returns the instance to the user", function () {
+			it("throws an error", function () {
 				expect(result).to.be.instanceOf(Error);
 				expect(result.message).to.equal("Simulated Failure");
 			});
