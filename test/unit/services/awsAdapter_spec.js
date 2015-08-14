@@ -10,9 +10,11 @@ var InstanceAdapter = require("../../../lib/services/instanceAdapter");
 var Instance        = require("../../../lib/models/Instance");
 var _               = require("lodash");
 var ec2             = new AWS.EC2();
-var S3              = new AWS.S3();
+var s3              = new AWS.S3();
 
 Bluebird.promisifyAll(ec2);
+
+Bluebird.promisifyAll(s3);
 
 require("sinon-as-promised")(Bluebird);
 
@@ -111,7 +113,7 @@ describe("The AwsAdapter class ", function () {
 
 	var instances  = new InstanceAdapter();
 
-	var awsOptions = { serverLog : serverLog, ec2 : ec2, instances : instances, s3 : S3 };
+	var awsOptions = { serverLog : serverLog, ec2 : ec2, instances : instances, s3 : s3 };
 
 	describe("trying to create a new instance", function () {
 		var createTagsStub;
@@ -308,7 +310,8 @@ describe("The AwsAdapter class ", function () {
 
 			it("throws an error", function () {
 				expect(result.name).to.equal("ValidationError");
-				expect(result.message).to.equal("Bad request: Error with security groups.");
+				expect(result.message).to
+				.equal("Bad request: Both createSecurityGroup and existingSecurityGroup were specified.");
 			});
 		});
 
@@ -383,6 +386,10 @@ describe("The AwsAdapter class ", function () {
 				.resolves("created-key");
 
 				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				uploadStub = Sinon.stub(s3, "uploadAsync").resolves({
+					Location : "https://key-location-on-s3.com"
+				});
 
 				return awsAdapter.runInstances(VALID_INSTANCE, CREATE_KEY_OPTIONS)
 				.then(function (response) {
@@ -470,6 +477,7 @@ describe("The AwsAdapter class ", function () {
 			var beginPollingStub;
 			var describeSecurityGroupsStub;
 			var createKeyPairStub;
+			var uploadStub;
 
 			before(function () {
 
@@ -497,6 +505,7 @@ describe("The AwsAdapter class ", function () {
 			after(function () {
 				runInstancesStub.restore();
 				beginPollingStub.restore();
+				uploadStub.restore();
 				describeSecurityGroupsStub.restore();
 				createKeyPairStub.restore();
 			});
@@ -564,7 +573,7 @@ describe("The AwsAdapter class ", function () {
 			});
 
 			it("calls describeKeyPairsAsync with the correct parameters", function () {
-				expect(describeKeyPairsStub.firstCall.args[ 0 ].KeyName[ 0 ]).to.equal("existing-key");
+				expect(describeKeyPairsStub.firstCall.args[ 0 ].KeyNames[ 0 ]).to.equal("existing-key");
 			});
 
 			it("throws an error", function () {
@@ -605,7 +614,123 @@ describe("The AwsAdapter class ", function () {
 
 			it("throws an error", function () {
 				expect(result.name).to.equal("ValidationError");
-				expect(result.message).to.equal("Bad request: Two key-pair names were specified.");
+				expect(result.message).to.equal("Bad request: Both createKeyName and existingKeyName were specified.");
+			});
+		});
+
+		describe("with the default key-pair when it has been deleted from S3", function () {
+
+			var result;
+			var runInstancesStub;
+			var beginPollingStub;
+			var describeSecurityGroupsStub;
+			var describeKeyPairsStub;
+			var createKeyPairStub;
+			var uploadStub;
+
+			before(function () {
+
+				var error  = new Error();
+				error.name = "InvalidKeyPair.NotFound";
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.rejects(error);
+
+				createKeyPairStub = Sinon.stub(ec2, "createKeyPairAsync").resolves("test");
+
+				uploadStub = Sinon.stub(s3, "uploadAsync").resolves({
+					Location : "https://key-location-on-s3.com"
+				});
+
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_OPTIONS)
+				.then(function (response) {
+					result = response;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				beginPollingStub.restore();
+				describeSecurityGroupsStub.restore();
+				describeKeyPairsStub.restore();
+				createKeyPairStub.restore();
+				uploadStub.restore();
+			});
+
+			it("and returns a new instance with the ami, type and default security group", function () {
+				expect(runInstancesStub.firstCall.args[ 0 ].ImageId).to.equal(DEFAULT_AMI);
+				expect(runInstancesStub.firstCall.args[ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
+				expect(runInstancesStub.firstCall.args[ 0 ].MaxCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].MinCount).to.equal(1);
+				expect(runInstancesStub.firstCall.args[ 0 ].SecurityGroups[ 0 ]).to.equal("service-maker");
+				console.log(runInstancesStub.firstCall.args[ 0 ]);
+				expect(runInstancesStub.firstCall.args[ 0 ].KeyName).to.equal("service-maker");
+			});
+
+			it("returns the instance to the user", function () {
+				expect(result.ami, "response").to.equal("ami-d05e75b8");
+				expect(result.type, "response").to.equal("t2.micro");
+			});
+		});
+
+		describe("with the default key-pair when it has been deleted from S3", function () {
+
+			var result;
+			var runInstancesStub;
+			var describeSecurityGroupsStub;
+			var describeKeyPairsStub;
+			var createKeyPairStub;
+
+			before(function () {
+
+				var error  = new Error();
+				error.name = "InvalidKeyPair.NotFound";
+
+				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
+						Instances : [ {
+							InstanceId : "test"
+						} ]
+				});
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
+				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
+				.rejects(error);
+
+				createKeyPairStub = Sinon.stub(ec2, "createKeyPairAsync").rejects(new Error("Simulated Failure"));
+
+				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_OPTIONS)
+				.catch(function (error) {
+					result = error;
+				});
+			});
+
+			after(function () {
+				runInstancesStub.restore();
+				describeSecurityGroupsStub.restore();
+				describeKeyPairsStub.restore();
+				createKeyPairStub.restore();
+			});
+
+			it("no instance is created", function () {
+				expect(runInstancesStub.callCount).to.equal(0);
+			});
+
+			it("returns the instance to the user", function () {
+				expect(result).to.be.instanceOf(Error);
+				expect(result.message).to.equal("Simulated Failure");
 			});
 		});
 
@@ -1164,7 +1289,7 @@ describe("The AwsAdapter class ", function () {
 			options.sshAdapter = new SshAdapter(ec2);
 			options.instances = "thisIswrong";
 			options.ec2 = ec2;
-			options.s3  = S3;
+			options.s3  = s3;
 			options.serverLog = function () { };
 			before(function () {
 				try {
