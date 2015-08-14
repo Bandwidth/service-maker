@@ -12,7 +12,7 @@ var AwsAdapter      = require("../../../lib/services/awsAdapter");
 var Sinon           = require("sinon");
 var _               = require("lodash");
 var Catbox          = require("catbox");
-var CatboxMongoDb   = require("catbox-mongodb");
+var CatboxMemory    = require("catbox-memory");
 var Environment     = require("apparition").Environment;
 
 require("sinon-as-promised");
@@ -3061,9 +3061,9 @@ describe("The Rest plugin", function () {
 
 			before(function () {
 				var catboxOptions = {
-					partition : "testing"
+					partition : "testing_abc"
 				};
-				var cache = new Catbox.Client(CatboxMongoDb, catboxOptions);
+				var cache = new Catbox.Client(CatboxMemory, catboxOptions);
 
 				cacheStartStub = Sinon.stub(cache, "startAsync").rejects(Error("Simulated Failure."));
 				server.connection();

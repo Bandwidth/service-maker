@@ -52,6 +52,7 @@
     "good-console": "^5.0.2",
     "good": "^6.3.0",
     "catbox": "^6.0.0",
-    "catbox-mongodb": "^1.1.0"
+    "catbox-mongodb": "^1.1.0",
+    "catbox-memory": "^1.1.1"
   }
 }
