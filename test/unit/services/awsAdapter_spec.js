@@ -519,9 +519,8 @@ describe("The AwsAdapter class ", function () {
 			});
 
 			it("throws an error", function () {
-				expect(result.name).to.equal("ValidationError");
-				expect(result.message).to
-				.equal("Bad request: Both createSecurityGroup and existingSecurityGroup were specified.");
+				expect(result.name).to.equal("Error");
+				expect(result.message).to.equal("Simulated Failure");
 			});
 
 			it("doesn't create a new instance", function () {
