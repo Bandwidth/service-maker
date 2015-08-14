@@ -674,7 +674,6 @@ describe("The AwsAdapter class ", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].MaxCount).to.equal(1);
 				expect(runInstancesStub.firstCall.args[ 0 ].MinCount).to.equal(1);
 				expect(runInstancesStub.firstCall.args[ 0 ].SecurityGroups[ 0 ]).to.equal("service-maker");
-				console.log(runInstancesStub.firstCall.args[ 0 ]);
 				expect(runInstancesStub.firstCall.args[ 0 ].KeyName).to.equal("service-maker");
 			});
 
