@@ -32,13 +32,17 @@ Lists all instances which have been provisioned by Service Maker. Can be queried
 
 ### `POST` /v1/instances
 Creates a new instance of the specified type.
-
+* If neither createSecurityGroup nor existingSecurityGroup are specified, the default security group is used.
+* If neither createKeyName nor existingKeyName are specified, the default key name is used.
 #### Payload format
 ```
 {
-	"ami"           : string, // [OPTIONAL] the AMI ID for the instance. Defaults to a blank Ubuntu AMI.
-	"type"          : string, // [OPTIONAL] an EC2 instance type. Defaults to t2.micro
-	"securityGroup" : string  // [OPTIONAL] an EC2 security group name. Defaults to service-maker.
+	"ami"                   : string, // [OPTIONAL] the AMI ID for the instance. Defaults to a blank Ubuntu AMI.
+	"type"                  : string, // [OPTIONAL] an EC2 instance type. Defaults to t2.micro
+	"createSecurityGroup"   : string, // [OPTIONAL] the name of the new EC2 Security Group to be created.
+	"existingSecurityGroup" : string, // [OPTIONAL] the name of an existing EC2 Security Group.
+	"createKeyName"         : string, // [OPTIONAL] the key-pair name of a new EC2 key-pair to be created.
+	"existingKeyName"       : string  // [OPTIONAL] the key-pair name of an existing EC2 key-pair.
 }
 ```
 

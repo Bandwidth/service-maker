@@ -11,6 +11,7 @@
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
+privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
 {
     "id"       : "instanceId1",
     "type"     : "t2.micro",
@@ -38,6 +39,7 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
+privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
 {
     "id"       : "instanceId1",
     "type"     : "t2.micro",
@@ -67,6 +69,7 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
+privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
   {
     "id"       : "instanceId1",
     "type"     : "m1.medium",
@@ -82,14 +85,76 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 5. The user begins using his new EC2 instance.
 
 ### `Id` With a valid AMI, specified instance type and an existing security group
+1. The User wants to create a new `m1.medium` instance, provisioned with the `ami-myapp` image and creating a new security group `security-group`.
+
+2. The User posts to `/v1/instances` with the payload:
+```
+  {
+    "ami"                 : "ami-myapp",
+    "type"                : "m1.medium",
+    "createSecurityGroup" : "security-group"
+  }
+```
+
+3. The user receives a response:
+```
+201 Created
+Location: https://my-servicemaker.com/v1/instances/instanceId1
+privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
+  {
+    "id"       : "instanceId1",
+    "type"     : "m1.medium",
+    "ami"      : "ami-myapp",
+    "state"    : "pending",
+    "uri"      : "https://ec2-127-0-0-1.compute-1.amazonaws.com",
+    "revision" : 0
+  }
+```
+
+4. The user begins polling on `https://my-servicemaker.com/v1/instances/instanceId1` until the resource `state` changes to `ready`.
+
+5. The user begins using his new EC2 instance.
+
+### `Ie` With a valid AMI, specified instance type and an existing security group
 1. The User wants to create a new `m1.medium` instance, provisioned with the `ami-myapp` image and using an existing security group `security-group`.
 
 2. The User posts to `/v1/instances` with the payload:
 ```
   {
-    "ami"           : "ami-myapp",
-    "type"          : "m1.medium",
-    "securityGroup" : "security-group"
+    "ami"                   : "ami-myapp",
+    "type"                  : "m1.medium",
+    "existingSecurityGroup" : "security-group"
+  }
+```
+
+3. The user receives a response:
+```
+201 Created
+Location: https://my-servicemaker.com/v1/instances/instanceId1
+privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
+  {
+    "id"       : "instanceId1",
+    "type"     : "m1.medium",
+    "ami"      : "ami-myapp",
+    "state"    : "pending",
+    "uri"      : "https://ec2-127-0-0-1.compute-1.amazonaws.com",
+    "revision" : 0
+  }
+```
+
+4. The user begins polling on `https://my-servicemaker.com/v1/instances/instanceId1` until the resource `state` changes to `ready`.
+
+5. The user begins using his new EC2 instance.
+
+### `If` With a valid AMI, specified instance type and an existing key-pair
+1. The User wants to create a new `m1.medium` instance, provisioned with the `ami-myapp` image and creating a new security group `security-group`.
+
+2. The User posts to `/v1/instances` with the payload:
+```
+  {
+    "ami"             : "ami-myapp",
+    "type"            : "m1.medium",
+    "existingKeyName" : "key-pair"
   }
 ```
 
@@ -111,7 +176,38 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 
 5. The user begins using his new EC2 instance.
 
-### `Ie` With an invalid AMI
+### `Ig` With a valid AMI, specified instance type and creating a new key-pair
+1. The User wants to create a new `m1.medium` instance, provisioned with the `ami-myapp` image and create a new key-pair `key-pair`.
+
+2. The User posts to `/v1/instances` with the payload:
+```
+  {
+    "ami"           : "ami-myapp",
+    "type"          : "m1.medium",
+    "createKeyName" : "key-pair"
+  }
+```
+
+3. The user receives a response:
+```
+201 Created
+Location: https://my-servicemaker.com/v1/instances/instanceId1
+privatekeylocation : https://s3.amazonaws.com/default-bucket/key-pair.pem
+  {
+    "id"       : "instanceId1",
+    "type"     : "m1.medium",
+    "ami"      : "ami-myapp",
+    "state"    : "pending",
+    "uri"      : "https://ec2-127-0-0-1.compute-1.amazonaws.com",
+    "revision" : 0
+  }
+```
+
+4. The user begins polling on `https://my-servicemaker.com/v1/instances/instanceId1` until the resource `state` changes to `ready`.
+
+5. The user begins using his new EC2 instance.
+
+### `Ih` With an invalid AMI
 1. The User wants to create a new instance, provisioned with the `ami-invalid` image, which does not exist.
 
 2. The User posts to `/v1/instances` with the payload:
@@ -129,7 +225,7 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
   }
 ```
 
-### `If` With an invalid instance type
+### `Ii` With an invalid instance type
 1. The User wants to create a new instance, provisioned with the `ami-myapp` image, with the nonexistent `z1.gigantic` instance type.
 
 2. The User posts to `/v1/instances` with the payload:
