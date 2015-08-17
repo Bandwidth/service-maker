@@ -13,7 +13,6 @@ var ec2             = new AWS.EC2();
 var s3              = new AWS.S3();
 
 Bluebird.promisifyAll(ec2);
-
 Bluebird.promisifyAll(s3);
 
 require("sinon-as-promised")(Bluebird);
@@ -219,8 +218,6 @@ describe("The AwsAdapter class ", function () {
 				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
 				.resolves("service-maker");
 
-				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
-
 				return awsAdapter.runInstances(VALID_INSTANCE, EXISTING_SECURITY_OPTIONS)
 				.then(function (response) {
 					result = response;
@@ -368,6 +365,7 @@ describe("The AwsAdapter class ", function () {
 			var runInstancesStub;
 			var describeSecurityGroupsStub;
 			var createKeyPairStub;
+			var uploadStub;
 
 			before(function () {
 
@@ -383,8 +381,6 @@ describe("The AwsAdapter class ", function () {
 				createKeyPairStub = Sinon.stub(ec2, "createKeyPairAsync")
 				.resolves("created-key");
 
-				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
-
 				uploadStub = Sinon.stub(s3, "uploadAsync").resolves({
 					Location : "https://key-location-on-s3.com"
 				});
@@ -399,6 +395,7 @@ describe("The AwsAdapter class ", function () {
 				runInstancesStub.restore();
 				describeSecurityGroupsStub.restore();
 				createKeyPairStub.restore();
+				uploadStub.restore();
 			});
 
 			it("and returns a new instance with the ami, type and default security group", function () {
@@ -420,7 +417,6 @@ describe("The AwsAdapter class ", function () {
 
 			var result;
 			var runInstancesStub;
-			var beginPollingStub;
 			var describeSecurityGroupsStub;
 			var describeKeyPairsStub;
 
@@ -438,8 +434,6 @@ describe("The AwsAdapter class ", function () {
 				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
 				.resolves("existing-key");
 
-				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
-
 				return awsAdapter.runInstances(VALID_INSTANCE, EXISTING_KEY_OPTIONS)
 				.then(function (response) {
 					result = response;
@@ -448,7 +442,6 @@ describe("The AwsAdapter class ", function () {
 
 			after(function () {
 				runInstancesStub.restore();
-				beginPollingStub.restore();
 				describeSecurityGroupsStub.restore();
 				describeKeyPairsStub.restore();
 			});
@@ -472,10 +465,8 @@ describe("The AwsAdapter class ", function () {
 
 			var result;
 			var runInstancesStub;
-			var beginPollingStub;
 			var describeSecurityGroupsStub;
 			var createKeyPairStub;
-			var uploadStub;
 
 			before(function () {
 
@@ -491,8 +482,6 @@ describe("The AwsAdapter class ", function () {
 				createKeyPairStub = Sinon.stub(ec2, "createKeyPairAsync")
 				.rejects("Simulated Failure");
 
-				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
-
 				return awsAdapter.runInstances(VALID_INSTANCE, CREATE_KEY_OPTIONS)
 				.catch(function (error) {
 					result = error;
@@ -502,8 +491,6 @@ describe("The AwsAdapter class ", function () {
 
 			after(function () {
 				runInstancesStub.restore();
-				beginPollingStub.restore();
-				uploadStub.restore();
 				describeSecurityGroupsStub.restore();
 				createKeyPairStub.restore();
 			});
@@ -531,7 +518,6 @@ describe("The AwsAdapter class ", function () {
 
 			var result;
 			var runInstancesStub;
-			var beginPollingStub;
 			var describeSecurityGroupsStub;
 			var describeKeyPairsStub;
 
@@ -549,8 +535,6 @@ describe("The AwsAdapter class ", function () {
 				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
 				.rejects("Simulated Failure");
 
-				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
-
 				return awsAdapter.runInstances(VALID_INSTANCE, EXISTING_KEY_OPTIONS)
 				.catch(function (error) {
 					result = error;
@@ -560,7 +544,6 @@ describe("The AwsAdapter class ", function () {
 
 			after(function () {
 				runInstancesStub.restore();
-				beginPollingStub.restore();
 				describeSecurityGroupsStub.restore();
 				describeKeyPairsStub.restore();
 			});
@@ -619,7 +602,6 @@ describe("The AwsAdapter class ", function () {
 
 			var result;
 			var runInstancesStub;
-			var beginPollingStub;
 			var describeSecurityGroupsStub;
 			var describeKeyPairsStub;
 			var createKeyPairStub;
@@ -651,8 +633,6 @@ describe("The AwsAdapter class ", function () {
 					Location : "https://key-location-on-s3.com"
 				});
 
-				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
-
 				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_OPTIONS)
 				.then(function (response) {
 					result = response;
@@ -661,7 +641,6 @@ describe("The AwsAdapter class ", function () {
 
 			after(function () {
 				runInstancesStub.restore();
-				beginPollingStub.restore();
 				describeSecurityGroupsStub.restore();
 				describeKeyPairsStub.restore();
 				createKeyPairStub.restore();
@@ -737,7 +716,6 @@ describe("The AwsAdapter class ", function () {
 
 			var result;
 			var runInstancesStub;
-			var beginPollingStub;
 			var describeSecurityGroupsStub;
 			var describeKeyPairsStub;
 
@@ -755,8 +733,6 @@ describe("The AwsAdapter class ", function () {
 				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
 				.resolves("service-maker");
 
-				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
-
 				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_OPTIONS)
 				.then(function (response) {
 					result = response;
@@ -765,7 +741,6 @@ describe("The AwsAdapter class ", function () {
 
 			after(function () {
 				runInstancesStub.restore();
-				beginPollingStub.restore();
 				describeSecurityGroupsStub.restore();
 				describeKeyPairsStub.restore();
 			});
@@ -987,6 +962,7 @@ describe("The AwsAdapter class ", function () {
 			options.sshAdapter = new SshAdapter(ec2);
 			options.instances = "thisIswrong";
 			options.ec2 = ec2;
+			options.s3  = s3;
 			options.serverLog = function () { };
 			before(function () {
 				try {
@@ -1279,29 +1255,6 @@ describe("The AwsAdapter class ", function () {
 			it("starts terminating the instance", function () {
 				expect(stopInstancesStub.args[ 0 ][ 0 ].InstanceIds[ 0 ]).to.equal(VALID_AWS_ID);
 			});
-		});
-
-		describe("with invalid parameters", function () {
-			var awsAdapter;
-			var result;
-			var options = {};
-			options.sshAdapter = new SshAdapter(ec2);
-			options.instances = "thisIswrong";
-			options.ec2 = ec2;
-			options.s3  = s3;
-			options.serverLog = function () { };
-			before(function () {
-				try {
-					awsAdapter = new AwsAdapter(options);
-				}
-				catch (err) {
-					result = err;
-				}
-
-			it("times out", function () {
-				expect(result.message).to.contain("timed out");
-			});
-
 		});
 
 	});
