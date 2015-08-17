@@ -183,8 +183,6 @@ describe("The AwsAdapter class ", function () {
 				.to.deep.equal(DEFAULT_SSH_RULE);
 			});
 
-			//it("creates ")
-
 			it("creates the instance with the ami, type and new security group", function () {
 				expect(runInstancesStub.firstCall.args[ 0 ].ImageId).to.equal(DEFAULT_AMI);
 				expect(runInstancesStub.firstCall.args[ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
@@ -639,7 +637,10 @@ describe("The AwsAdapter class ", function () {
 				});
 
 				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
-				.resolves("test");
+				.resolves({
+					name        : "test",
+					keyLocation : "test"
+				});
 
 				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
 				.rejects(error);
