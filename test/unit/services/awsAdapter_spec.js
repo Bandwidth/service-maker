@@ -593,7 +593,7 @@ describe("The AwsAdapter class ", function () {
 
 			before(function () {
 
-				createSecurityGroupStub = Sinon.stub(awsAdapter, "createSecurityGroup")
+				createSecurityGroupStub = Sinon.stub(awsAdapter, "getSecurityGroup")
 				.resolves("service-maker");
 
 				return awsAdapter.runInstances(VALID_INSTANCE, INVALID_KEY_OPTIONS)
@@ -797,7 +797,7 @@ describe("The AwsAdapter class ", function () {
 				AMIError.name = "InvalidAMIID.Malformed";
 				AMIError.message = "The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.";
 
-				createSecurityGroupStub = Sinon.stub(awsAdapter, "createSecurityGroup").resolves("test");
+				createSecurityGroupStub = Sinon.stub(awsAdapter, "getSecurityGroup").resolves("test");
 
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").rejects(AMIError);
 
@@ -842,7 +842,7 @@ describe("The AwsAdapter class ", function () {
 				TypeError.name = "InvalidParameterValue";
 				TypeError.message = "The Type entered does not exist. Ensure it is a valid EC2 type.";
 
-				createSecurityGroupStub = Sinon.stub(awsAdapter, "createSecurityGroup").resolves("test");
+				createSecurityGroupStub = Sinon.stub(awsAdapter, "getSecurityGroup").resolves("test");
 
 				describeKeyPairsStub = Sinon.stub(ec2, "describeKeyPairsAsync")
 				.resolves("service-maker");
