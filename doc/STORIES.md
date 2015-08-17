@@ -21,6 +21,8 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 }
 ```
 4. The user begins polling on `https://my-servicemaker.com/v1/instances/instanceId1` until the resource `state` changes to `ready`.
+When the user polls the above link, service maker checks if it is possible to SSH into the newly created instance and updates
+the state. Service maker stores the retrieved state in cache for 10 seconds.
 
 5. The user begins using his new EC2 instance.
 
