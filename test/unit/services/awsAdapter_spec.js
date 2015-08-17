@@ -25,7 +25,31 @@ describe("The AwsAdapter class ", function () {
 	var VALID_AWS_ID       = "i-1234567";
 	var VALID_ID           = "da14fbf2-5404-4f92-b55f-a961578204ed";
 	var DEFAULT_GROUP_ID   = "sg-a1234567";
-	var DEFAULT_SG_NAME    = "service-maker";
+
+	var CREATE_SECURITY_OPTIONS = {
+		createSecurityGroup   : "created-group",
+		existingSecurityGroup : undefined
+	};
+
+	var EXISTING_SECURITY_OPTIONS = {
+		createSecurityGroup   : undefined,
+		existingSecurityGroup : "existing-group"
+	};
+
+	var INVALID_SECURITY_OPTIONS = {
+		createSecurityGroup   : "created-group",
+		existingSecurityGroup : "existing-group"
+	};
+
+	var RESERVED_SECURITY_OPTIONS = {
+		createSecurityGroup   : "reserved-group",
+		existingSecurityGroup : undefined
+	};
+
+	var DEFAULT_SECURITY_OPTIONS = {
+		createSecurityGroup   : undefined,
+		existingSecurityGroup : undefined
+	};
 
 	var DEFAULT_SSH_RULE = {
 		FromPort   : 22,
@@ -59,7 +83,6 @@ describe("The AwsAdapter class ", function () {
 
 	describe("trying to create a new instance", function () {
 		var createTagsStub;
-		var result;
 		var awsAdapter = new AwsAdapter(awsOptions);
 
 		before(function () {
@@ -72,10 +95,12 @@ describe("The AwsAdapter class ", function () {
 			createTagsStub.restore();
 		});
 
-		describe("with valid parameters", function () {
+		describe("with valid parameters, creating a security group", function () {
 
+			var result;
 			var runInstancesStub;
 			var beginPollingStub;
+			var describeSecurityGroupsStub;
 			var createSecurityGroupStub;
 			var authorizeSecurityGroupIngressStub;
 
@@ -93,9 +118,12 @@ describe("The AwsAdapter class ", function () {
 						} ]
 				});
 
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
 				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
 
-				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
+				return awsAdapter.runInstances(VALID_INSTANCE, CREATE_SECURITY_OPTIONS)
 				.then(function (response) {
 					result = response;
 				});
@@ -105,50 +133,43 @@ describe("The AwsAdapter class ", function () {
 				runInstancesStub.restore();
 				beginPollingStub.restore();
 				createSecurityGroupStub.restore();
+				describeSecurityGroupsStub.restore();
 				authorizeSecurityGroupIngressStub.restore();
 			});
 
 			it("creates the security group", function () {
-				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
+				expect(createSecurityGroupStub.firstCall.args[ 0 ].GroupName[ 0 ]).to.equal("created-group");
 			});
 
 			it("adds rules for SSH to the security group", function () {
-				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].GroupId).to.equal(DEFAULT_GROUP_ID);
-				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
-				expect(authorizeSecurityGroupIngressStub.args[ 0 ][ 0 ].IpPermissions[ 0 ])
+				expect(authorizeSecurityGroupIngressStub.firstCall.args[ 0 ].GroupId).to.equal(DEFAULT_GROUP_ID);
+				expect(authorizeSecurityGroupIngressStub.firstCall.args[ 0 ].GroupName).to.equal("created-group");
+				expect(authorizeSecurityGroupIngressStub.firstCall.args[ 0 ].IpPermissions[ 0 ])
 				.to.deep.equal(DEFAULT_SSH_RULE);
 			});
 
-			it("and returns a new instance with the ami and type provided", function () {
+			it("creates the instance with the ami, type and new security group", function () {
 				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
 				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal(DEFAULT_SG_NAME);
+				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal("created-group");
+			});
 
+			it("returns the instance to the user", function  () {
 				expect(result.ami, "response").to.equal("ami-d05e75b8");
 				expect(result.type, "response").to.equal("t2.micro");
 			});
 		});
 
-		describe("with a security group name that already exists", function () {
+		describe("with a security group that already exists", function () {
 
+			var result;
 			var runInstancesStub;
 			var beginPollingStub;
-			var createSecurityGroupStub;
-			var authorizeSecurityGroupIngressStub;
+			var describeSecurityGroupsStub;
 
 			before(function () {
-
-				var error     = new Error();
-				error.message = "The security group already exists";
-				error.name    = "InvalidGroup.Duplicate";
-
-				createSecurityGroupStub = Sinon.stub(ec2, "createSecurityGroupAsync")
-				.rejects(error);
-
-				authorizeSecurityGroupIngressStub = Sinon.stub(ec2, "authorizeSecurityGroupIngressAsync")
-				.resolves("test");
 
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
 						Instances : [ {
@@ -156,9 +177,12 @@ describe("The AwsAdapter class ", function () {
 						} ]
 				});
 
-				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
 
-				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, EXISTING_SECURITY_OPTIONS)
 				.then(function (response) {
 					result = response;
 				});
@@ -167,48 +191,31 @@ describe("The AwsAdapter class ", function () {
 			after(function () {
 				runInstancesStub.restore();
 				beginPollingStub.restore();
-				createSecurityGroupStub.restore();
-				authorizeSecurityGroupIngressStub.restore();
+				describeSecurityGroupsStub.restore();
 			});
 
-			it("finds the group already created", function () {
-				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
-			});
-
-			it("checks that it isn't modified", function () {
-				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
-			});
-
-			it("and returns a new instance with the ami and type provided", function () {
+			it("and returns a new instance with the ami, type and existing security group", function () {
 				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
 				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal(DEFAULT_SG_NAME);
+				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal("existing-group");
+			});
 
+			it("returns the instance to the user", function () {
 				expect(result.ami, "response").to.equal("ami-d05e75b8");
 				expect(result.type, "response").to.equal("t2.micro");
 			});
 		});
 
-		describe("with a security group name that is reserved", function () {
+		describe("with the default security group", function () {
 
+			var result;
 			var runInstancesStub;
 			var beginPollingStub;
-			var createSecurityGroupStub;
-			var authorizeSecurityGroupIngressStub;
+			var describeSecurityGroupsStub;
 
 			before(function () {
-
-				var error     = new Error();
-				error.message = "The security group name used is reserved.";
-				error.name    = "InvalidParameters";
-
-				createSecurityGroupStub = Sinon.stub(ec2, "createSecurityGroupAsync")
-				.rejects(error);
-
-				authorizeSecurityGroupIngressStub = Sinon.stub(ec2, "authorizeSecurityGroupIngressAsync")
-				.resolves("test");
 
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
 						Instances : [ {
@@ -216,9 +223,12 @@ describe("The AwsAdapter class ", function () {
 						} ]
 				});
 
-				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
 
-				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
+				beginPollingStub = Sinon.stub(awsAdapter, "beginPolling");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SECURITY_OPTIONS)
 				.then(function (response) {
 					result = response;
 				});
@@ -227,47 +237,101 @@ describe("The AwsAdapter class ", function () {
 			after(function () {
 				runInstancesStub.restore();
 				beginPollingStub.restore();
-				createSecurityGroupStub.restore();
-				authorizeSecurityGroupIngressStub.restore();
+				describeSecurityGroupsStub.restore();
 			});
 
-			it("finds the group already created", function () {
-				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
-			});
-
-			it("checks that it isn't modified", function () {
-				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
-			});
-
-			it("and returns a new instance with the ami and type provided", function () {
+			it("and returns a new instance with the ami, type and default security group", function () {
 				expect(runInstancesStub.args[ 0 ][ 0 ].ImageId).to.equal(DEFAULT_AMI);
 				expect(runInstancesStub.args[ 0 ][ 0 ].InstanceType).to.equal(DEFAULT_TYPE);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MaxCount).to.equal(1);
 				expect(runInstancesStub.args[ 0 ][ 0 ].MinCount).to.equal(1);
-				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal(DEFAULT_SG_NAME);
+				expect(runInstancesStub.args[ 0 ][ 0 ].SecurityGroups[ 0 ]).to.equal("service-maker");
+			});
 
+			it("returns the instance to the user", function () {
 				expect(result.ami, "response").to.equal("ami-d05e75b8");
 				expect(result.type, "response").to.equal("t2.micro");
 			});
 		});
 
-		describe("when an error occurs with creating the security group", function () {
+		describe("when a reserved security group name is used", function () {
 
-			var runInstancesStub;
-			var beginPollingStub;
+			var result;
+			var describeSecurityGroupsStub;
 			var createSecurityGroupStub;
 			var authorizeSecurityGroupIngressStub;
+
+			before(function () {
+
+				var error = new Error();
+				error.name = "InvalidGroup.Reserved";
+				createSecurityGroupStub = Sinon.stub(ec2, "createSecurityGroupAsync")
+				.rejects(error);
+
+				authorizeSecurityGroupIngressStub = Sinon.stub(ec2, "authorizeSecurityGroupIngressAsync")
+				.resolves("test");
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
+				.resolves("test");
+
+				return awsAdapter.runInstances(VALID_INSTANCE, RESERVED_SECURITY_OPTIONS)
+				.catch(function (error) {
+					result = error;
+				});
+			});
+
+			after(function () {
+				createSecurityGroupStub.restore();
+				describeSecurityGroupsStub.restore();
+				authorizeSecurityGroupIngressStub.restore();
+			});
+
+			it("calls createSecurityGroupAsync with the correct parameters", function () {
+				expect(createSecurityGroupStub.firstCall.args[ 0 ].GroupName[ 0 ]).to.equal("reserved-group");
+			});
+
+			it("no security group rules are created", function () {
+				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
+			});
+
+			it("throws an error", function  () {
+				expect(result).to.be.instanceOf(Error);
+				expect(result.name).to.equal("InvalidGroup.Reserved");
+			});
+		});
+
+		describe("when both create and existing security group parameters are set", function () {
+
 			var result;
 
 			before(function () {
 
-				var error     = new Error("Simulated Error");
+				return awsAdapter.runInstances(VALID_INSTANCE, INVALID_SECURITY_OPTIONS)
+				.catch(function (error) {
+					result = error;
+				});
+			});
 
-				createSecurityGroupStub = Sinon.stub(ec2, "createSecurityGroupAsync")
+			it("throws an error", function () {
+				expect(result.name).to.equal("ValidationError");
+				expect(result.message).to
+				.equal("Bad request: Both createSecurityGroup and existingSecurityGroup were specified.");
+			});
+		});
+
+		describe("when an error occurs with using an existing security group", function () {
+
+			var result;
+
+			var runInstancesStub;
+			var describeSecurityGroupsStub;
+
+			before(function () {
+
+				var error = new Error("Simulated Error");
+
+				describeSecurityGroupsStub = Sinon.stub(ec2, "describeSecurityGroupsAsync")
 				.rejects(error);
-
-				authorizeSecurityGroupIngressStub = Sinon.stub(ec2, "authorizeSecurityGroupIngressAsync")
-				.resolves("test");
 
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").resolves({
 						Instances : [ {
@@ -275,9 +339,7 @@ describe("The AwsAdapter class ", function () {
 						} ]
 				});
 
-				beginPollingStub = Sinon.stub(awsAdapter,"beginPolling");
-
-				awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SG_NAME)
+				return awsAdapter.runInstances(VALID_INSTANCE, DEFAULT_SECURITY_OPTIONS)
 				.then(function (response) {
 					result = response;
 				})
@@ -288,13 +350,14 @@ describe("The AwsAdapter class ", function () {
 
 			after(function () {
 				runInstancesStub.restore();
-				beginPollingStub.restore();
-				createSecurityGroupStub.restore();
-				authorizeSecurityGroupIngressStub.restore();
+				describeSecurityGroupsStub.restore();
 			});
 
-			it("expects an error", function () {
-				expect(createSecurityGroupStub.args[ 0 ][ 0 ].GroupName).to.equal(DEFAULT_SG_NAME);
+			it("calls describeSecurityGroupsAsync with the correct parameters", function () {
+				expect(describeSecurityGroupsStub.firstCall.args[ 0 ].GroupNames[ 0 ]).to.equal("service-maker");
+			});
+
+			it("throws an error", function () {
 				expect(result, "error").to.be.instanceof(Error);
 				expect(result.message).to.equal("Simulated Error");
 			});
@@ -303,13 +366,11 @@ describe("The AwsAdapter class ", function () {
 				expect(runInstancesStub.callCount).to.equal(0);
 			});
 
-			it("doesn't try adding rules to the security group", function () {
-				expect(authorizeSecurityGroupIngressStub.callCount).to.equal(0);
-			});
 		});
 
 		describe("with invalid ami", function () {
 
+			var result;
 			var runInstancesStub;
 			var createSecurityGroupStub;
 
@@ -319,11 +380,11 @@ describe("The AwsAdapter class ", function () {
 				AMIError.name = "InvalidAMIID.Malformed";
 				AMIError.message = "The AMI entered does not exist. Ensure it is of the form ami-xxxxxx.";
 
-				createSecurityGroupStub = Sinon.stub(awsAdapter, "createSecurityGroup").resolves("test");
+				createSecurityGroupStub = Sinon.stub(awsAdapter, "getSecurityGroup").resolves("test");
 
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").rejects(AMIError);
 
-				awsAdapter.runInstances(INVALID_INSTANCE_AMI)
+				return awsAdapter.runInstances(INVALID_INSTANCE_AMI, DEFAULT_SECURITY_OPTIONS)
 				.then(function (response) {
 					result = response;
 				})
@@ -349,6 +410,7 @@ describe("The AwsAdapter class ", function () {
 
 		describe("with invalid type", function () {
 
+			var result;
 			var runInstancesStub;
 			var createSecurityGroupStub;
 
@@ -358,11 +420,11 @@ describe("The AwsAdapter class ", function () {
 				TypeError.name = "InvalidParameterValue";
 				TypeError.message = "The Type entered does not exist. Ensure it is a valid EC2 type.";
 
-				createSecurityGroupStub = Sinon.stub(awsAdapter, "createSecurityGroup").resolves("test");
+				createSecurityGroupStub = Sinon.stub(awsAdapter, "getSecurityGroup").resolves("test");
 
 				runInstancesStub = Sinon.stub(ec2, "runInstancesAsync").rejects(TypeError);
 
-				awsAdapter.runInstances(INVALID_INSTANCE_TYPE)
+				return awsAdapter.runInstances(INVALID_INSTANCE_TYPE, DEFAULT_SECURITY_OPTIONS)
 				.then(function (response) {
 					result = response;
 				})
