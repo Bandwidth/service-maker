@@ -3098,13 +3098,13 @@ describe("The Rest plugin", function () {
 		});
 	});
 
-	describe("fails to create a Database for Cache", function () {
+	describe("tries to start catbox (cache memory)", function () {
 		var instanceAdapter = new InstanceAdapter();
 		var awsAdapter      = new AwsAdapter();
 		var result;
 		var cacheStartStub;
 
-		describe("when it fails to start the DB", function () {
+		describe("and it fails", function () {
 			var server = new Hapi.Server();
 
 			before(function () {
