@@ -1034,47 +1034,47 @@ describe("The AwsAdapter class ", function () {
 		});
 
 		describe("faces an error while checking ssh Status", function () {
-			var canSshStub;
-			var instanceProp;
-			var result;
-			var describeInstancesStub;
+			describe("and tries to update the instance", function () {
+				var canSshStub;
+				var instanceProp;
+				var result;
+				var describeInstancesStub;
 
-			before(function () {
-				canSshStub = Sinon.stub(sshAdapter,"canSsh", function () {
-					return Bluebird.rejects(new Error("Simulated Failure."));
+				before(function () {
+					canSshStub = Sinon.stub(sshAdapter,"canSsh", function () {
+						return Bluebird.rejects(new Error("Simulated Failure."));
+					});
+
+					describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
+						var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
+						return Bluebird.resolve(data);
+					});
+
+					return instances.createInstance()
+					.then(function (data) {
+						instanceProp = _.clone(data);
+						instanceProp.instanceID = VALID_EC2_INSTANCE;
+						return awsAdapter.checkInstanceStatus(instanceProp);
+					})
+					.then(function (data) {
+						result = data;
+					});
 				});
 
-				describeInstancesStub = Sinon.stub(ec2, "describeInstancesAsync", function () {
-					var data = { Reservations : [ { Instances : [ { InstanceId : VALID_AWS_ID } ] } ] };
-					return Bluebird.resolve(data);
+				after(function () {
+					canSshStub.restore();
+					describeInstancesStub.restore();
 				});
 
-				return instances.createInstance()
-				.then(function (data) {
-					instanceProp = _.clone(data);
-					instanceProp.instanceID = VALID_EC2_INSTANCE;
-					return awsAdapter.checkInstanceStatus(instanceProp);
-				})
-				.then(function (data) {
-					result = data;
+				it("updates the state and uri of the instance", function () {
+					expect(result.id).to.equal(instanceProp.id);
+					expect(result.type).to.equal(instanceProp.type);
+					expect(result.ami).to.equal(instanceProp.ami);
+					expect(result.state).to.equal("failed");
+					expect(result.uri).to.equal(null);
 				});
 			});
 
-			after(function () {
-				canSshStub.restore();
-				describeInstancesStub.restore();
-			});
-
-			it("updates the state and uri of the instance", function () {
-				expect(result.id).to.equal(instanceProp.id);
-				expect(result.type).to.equal(instanceProp.type);
-				expect(result.ami).to.equal(instanceProp.ami);
-				expect(result.state).to.equal("failed");
-				expect(result.uri).to.equal(null);
-			});
-		});
-
-		describe("faces an error while checking ssh Status", function () {
 			describe("updating instance fails as well", function () {
 				var canSshStub;
 				var instanceProp;
@@ -1227,6 +1227,7 @@ describe("The AwsAdapter class ", function () {
 					expect(result.message).to.match(/\bconcurrency\b/);
 				});
 			});
+
 		});
 
 		describe("is able to ssh & tries to update an instance which has already been modified", function () {
