@@ -16,6 +16,10 @@ require("sinon-as-promised");
 Bluebird.promisifyAll(Hapi);
 Bluebird.promisifyAll(ec2);
 
+var ID_REGEX     = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/;
+var DEFAULT_AMI  = "ami-d05e75b8";
+var DEFAULT_TYPE = "t2.micro";
+
 function cleanupInstance(id) {
 	var instanceParams = {
 		InstanceIds : [ id ]
@@ -27,6 +31,20 @@ function cleanUpAwsInstances(listofInstances) {
 	return Bluebird.each(listofInstances, function (instance) {
 		return cleanupInstance(instance);
 	});
+}
+
+function registerServer () {
+
+	var server = new Hapi.Server();
+
+	server.connection();
+	return server.registerAsync({
+		register : Rest
+	})
+	.then(function () {
+		return server;
+	});
+
 }
 
 function createInstance(server, ami, type) {
@@ -91,5 +109,182 @@ describe("The Rest plugin Integration Test", function () {
 			});
 		});
 	});
+
+});
+
+describe("Updating the state of an instance", function () {
+
+	function startInstance () {
+
+		var server;
+		var reply;
+		var instanceID;
+		var revision;
+		var instance;
+
+		before(function () {
+			return registerServer()
+			.then(function (result) {
+				server = result;
+				return createInstance(server);
+			})
+			.then(function (result) {
+				instance   = JSON.parse(result.payload);
+				instanceID = instance.instanceID;
+				revision   = instance.revision + 1;
+				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+				.payload({
+					ami      : instance.ami,
+					type     : instance.type,
+					uri      : instance.uri,
+					state    : "pending",
+					revision : instance.revision
+				});
+				return request.inject(server);
+			})
+			.then(function (result) {
+				reply = result;
+			});
+
+		});
+
+		after(function () {
+			return server.stopAsync()
+			.then(function () {
+				return cleanupInstance(instanceID);
+			});
+		});
+
+		it("updates the state of the instance to 'pending'", function () {
+			var result = JSON.parse(reply.payload);
+			expect(result.id).to.match(ID_REGEX);
+			expect(result.ami).to.equal(DEFAULT_AMI);
+			expect(result.type).to.equal(DEFAULT_TYPE);
+			expect(result.state).to.equal("pending");
+			expect(result.uri).to.equal(null);
+			expect(result.revision).to.equal(revision);
+		});
+
+		it("returns the canonical uri with appropriate an statusCode", function () {
+			expect(reply.statusCode, "status").to.equal(200);
+		});
+	}
+
+	function stopInstance () {
+
+		var server;
+		var reply;
+		var instanceID;
+		var revision;
+		var instance;
+
+		before(function () {
+			return registerServer()
+			.then(function (result) {
+				server = result;
+				return createInstance(server);
+			})
+			.then(function (result) {
+				instance   = JSON.parse(result.payload);
+				instanceID = instance.instanceID;
+				revision   = instance.revision + 1;
+				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+				.payload({
+					ami      : instance.ami,
+					type     : instance.type,
+					uri      : instance.uri,
+					state    : "stopping",
+					revision : instance.revision
+				});
+				return request.inject(server);
+			})
+			.then(function (result) {
+				reply = result;
+			});
+
+		});
+
+		after(function () {
+			return server.stopAsync()
+			.then(function () {
+				return cleanupInstance(instanceID);
+			});
+		});
+
+		it("updates the state of the instance to 'stopping'", function () {
+			var result = JSON.parse(reply.payload);
+
+			expect(result.id).to.match(ID_REGEX);
+			expect(result.ami).to.equal(DEFAULT_AMI);
+			expect(result.type).to.equal(DEFAULT_TYPE);
+			expect(result.state).to.equal("stopping");
+			expect(result.uri).to.equal(null);
+			expect(result.revision).to.equal(revision);
+		});
+
+		it("returns the canonical uri with appropriate an statusCode", function () {
+			expect(reply.statusCode, "status").to.equal(200);
+		});
+	}
+
+	function terminateInstance () {
+
+		var server;
+		var reply;
+		var instanceID;
+		var revision;
+		var instance;
+
+		before(function () {
+			return registerServer()
+			.then(function (result) {
+				server = result;
+				return createInstance(server);
+			})
+			.then(function (result) {
+				instance   = JSON.parse(result.payload);
+				instanceID = instance.instanceID;
+				revision   = instance.revision + 1;
+				var request = new Request("PUT", "/v1/instances/" + instance.id).mime("application/json")
+				.payload({
+					ami      : instance.ami,
+					type     : instance.type,
+					uri      : instance.uri,
+					state    : "terminating",
+					revision : instance.revision
+				});
+				return request.inject(server);
+			})
+			.then(function (result) {
+				reply = result;
+			});
+
+		});
+
+		after(function () {
+			return server.stopAsync()
+			.then(function () {
+				return cleanupInstance(instanceID);
+			});
+		});
+
+		it("updates the state of the instance to 'terminating'", function () {
+			var result = JSON.parse(reply.payload);
+			expect(result.id).to.match(ID_REGEX);
+			expect(result.ami).to.equal(DEFAULT_AMI);
+			expect(result.type).to.equal(DEFAULT_TYPE);
+			expect(result.state).to.equal("terminating");
+			expect(result.uri).to.equal(null);
+			expect(result.revision).to.equal(revision);
+		});
+
+		it("returns the canonical uri with appropriate an statusCode", function () {
+			expect(reply.statusCode, "status").to.equal(200);
+		});
+	}
+
+	describe("starting an instance", startInstance);
+	describe("stopping an instance", stopInstance);
+	describe("terminating an instance", terminateInstance);
 
 });
