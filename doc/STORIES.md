@@ -11,7 +11,7 @@
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
-privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
+PrivateKeyLocation : https://s3.amazonaws.com/default-bucket/default-key.pem
 {
     "id"       : "instanceId1",
     "type"     : "t2.micro",
@@ -39,7 +39,7 @@ privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
-privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
+PrivateKeyLocation : https://s3.amazonaws.com/default-bucket/default-key.pem
 {
     "id"       : "instanceId1",
     "type"     : "t2.micro",
@@ -69,7 +69,7 @@ privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
-privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
+PrivateKeyLocation : https://s3.amazonaws.com/default-bucket/default-key.pem
   {
     "id"       : "instanceId1",
     "type"     : "m1.medium",
@@ -100,7 +100,7 @@ privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
-privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
+PrivateKeyLocation : https://s3.amazonaws.com/default-bucket/default-key.pem
   {
     "id"       : "instanceId1",
     "type"     : "m1.medium",
@@ -131,7 +131,7 @@ privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
-privatekeylocation : https://s3.amazonaws.com/default-bucket/default-key.pem
+PrivateKeyLocation : https://s3.amazonaws.com/default-bucket/default-key.pem
   {
     "id"       : "instanceId1",
     "type"     : "m1.medium",
@@ -192,7 +192,7 @@ Location: https://my-servicemaker.com/v1/instances/instanceId1
 ```
 201 Created
 Location: https://my-servicemaker.com/v1/instances/instanceId1
-privatekeylocation : https://s3.amazonaws.com/default-bucket/key-pair.pem
+PrivateKeyLocation : https://s3.amazonaws.com/default-bucket/key-pair.pem
   {
     "id"       : "instanceId1",
     "type"     : "m1.medium",
