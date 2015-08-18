@@ -4,6 +4,7 @@ node_js:
 branches:
   only:
   - v1.0
+script: build/build.sh
 deploy:
   provider: heroku
   api_key:

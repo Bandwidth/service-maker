@@ -46,6 +46,23 @@ module.exports = function (grunt) {
 					recursive : true
 				}
 			}
+		},
+		mochaTest : {
+			integration : {
+				options : {
+					reporter : "spec",
+					timeout  : 4000
+				},
+
+				src : [ "test/integration/**/*_spec.js" ]
+			},
+			unit        : {
+				options : {
+					reporter : "spec"
+				},
+
+				src : [ "test/unit/**/*_spec.js" ]
+			}
 		}
 	});
 
@@ -53,6 +70,7 @@ module.exports = function (grunt) {
 	grunt.loadNpmTasks("grunt-contrib-jshint");
 	grunt.loadNpmTasks("grunt-jscs");
 	grunt.loadNpmTasks("grunt-mocha-istanbul");
+	grunt.loadNpmTasks("grunt-mocha-test");
 
 	// Rename tasks
 	grunt.task.renameTask("mocha_istanbul", "mochaIstanbul");
@@ -62,4 +80,8 @@ module.exports = function (grunt) {
 	grunt.registerTask("lint", "Check for common code problems.", [ "jshint" ]);
 	grunt.registerTask("style", "Check for style conformity.", [ "jscs" ]);
 	grunt.registerTask("default", [ "lint", "style", "test" ]);
+
+	grunt.registerTask("integration", "Run integration tests", function () {
+		grunt.task.run("mochaTest:integration");
+	});
 };
