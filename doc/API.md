@@ -48,7 +48,9 @@ Creates a new instance of the specified type.
 
 #### Returns
 
-* `201` Created: Returns a description of the created instance resource according to the schema [above](#instance). The reply body will contain a `Location` header which points to the canonical location of the Instance resource.
+* `201` Created: Returns a description of the created instance resource according to the schema [above](#instance).
+	* The reply body will contain a `Location` header which points to the canonical location of the Instance resource.
+	* The reply body will contain a `PrivateKeyLocation` header which points to the location of the `Private Key` if a new key is created or the default key is used.
 
 * `400` Bad Request: Returned if the instance configuration parameters are invalid (for instance, if the specified instance type does not exist).
 
